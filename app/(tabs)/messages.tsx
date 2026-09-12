@@ -170,7 +170,7 @@ export default function MessagesScreen() {
               <View style={styles.chatHeaderText}>
                 <Text style={styles.chatHeaderName}>{otherParticipant.name}</Text>
                 <Text style={styles.chatHeaderStatus}>
-                  {otherParticipant.role} • {otherParticipant.campus.shortName}
+                  {otherParticipant.role}{otherParticipant.campus ? ` • ${otherParticipant.campus.shortName}` : ''}
                 </Text>
               </View>
             </View>

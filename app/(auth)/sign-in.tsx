@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +19,7 @@ import { colors, fontSize, fontWeight, spacing } from '@/constants/theme';
 export default function SignInScreen() {
   const router = useRouter();
   const { login, isLoading } = useAuthStore();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,18 +31,13 @@ export default function SignInScreen() {
       return;
     }
 
-    if (!email.includes('.edu')) {
-      setError('Please use your .edu email address');
-      return;
-    }
-
     setError('');
-    const success = await login(email, password);
-    
-    if (success) {
+    const result = await login(email, password);
+
+    if (result.success) {
       router.replace('/(tabs)');
     } else {
-      setError('Invalid credentials. Please try again.');
+      setError(result.error || 'Invalid credentials. Please try again.');
     }
   };
 
@@ -44,20 +47,14 @@ export default function SignInScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={colors.text.dark} />
           </TouchableOpacity>
 
           <View style={styles.header}>
             <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in with your .edu email</Text>
+            <Text style={styles.subtitle}>Sign in with your campus email</Text>
           </View>
 
           <View style={styles.form}>
@@ -65,7 +62,7 @@ export default function SignInScreen() {
               label="Email"
               value={email}
               onChangeText={setEmail}
-              placeholder="your.name@university.edu"
+              placeholder="your.email@university.ac.za"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -82,11 +79,7 @@ export default function SignInScreen() {
               autoCapitalize="none"
               rightIcon={
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color={colors.text.gray}
-                  />
+                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={colors.text.gray} />
                 </TouchableOpacity>
               }
             />
@@ -99,12 +92,7 @@ export default function SignInScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Button
-              title="Sign In"
-              onPress={handleSignIn}
-              loading={isLoading}
-              fullWidth
-            />
+            <Button title="Sign In" onPress={handleSignIn} loading={isLoading} fullWidth />
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />

@@ -17,7 +17,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { useAuthStore } from '@/store/authStore';
-import { mockListings, mockCampuses } from '@/services/mockData';
+import { mockListings } from '@/services/mockData';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing, Campus } from '@/types';
 
@@ -25,7 +25,7 @@ type Tab = 'listings' | 'favorites' | 'settings';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { isAuthenticated, user, logout, selectedCampus, setSelectedCampus } = useAuthStore();
+  const { isAuthenticated, user, logout, selectedCampus, setSelectedCampus, campuses } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('listings');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -318,7 +318,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
-            {mockCampuses.map((campus) => (
+            {campuses.map((campus) => (
               <TouchableOpacity
                 key={campus.id}
                 style={[
@@ -329,7 +329,7 @@ export default function ProfileScreen() {
               >
                 <View>
                   <Text style={styles.campusName}>{campus.name}</Text>
-                  <Text style={styles.campusLocation}>{campus.location}</Text>
+                  <Text style={styles.campusLocation}>{campus.city}, {campus.province}</Text>
                 </View>
                 {selectedCampus?.id === campus.id && (
                   <Ionicons name="checkmark" size={20} color={colors.primary.DEFAULT} />

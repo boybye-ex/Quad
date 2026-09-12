@@ -2,7 +2,11 @@ export interface Campus {
   id: string;
   name: string;
   shortName: string;
-  location: string;
+  city: string;
+  province: string;
+  kind: 'public_university' | 'private_college' | 'tvet';
+  allowedEmailDomains: string[];
+  createdAt: Date;
 }
 
 export interface User {
@@ -10,9 +14,11 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  role: 'Student' | 'TA' | 'Senior' | 'Sophomore' | 'Junior' | 'Freshman' | 'Graduate';
+  role: 'student' | 'ta' | 'admin';
   isVerified: boolean;
-  campus: Campus;
+  isSuspended: boolean;
+  campus: Campus | null;
+  campusId: string | null;
   createdAt: Date;
 }
 

@@ -200,7 +200,7 @@ export default function ListingDetailScreen() {
                   <Text style={styles.sellerRole}>{listing.seller.role}</Text>
                   <Text style={styles.sellerDot}>•</Text>
                   <Text style={styles.sellerCampus}>
-                    {listing.seller.campus.shortName}
+                    {listing.seller.campus?.shortName || 'Unknown'}
                   </Text>
                 </View>
                 {listing.seller.isVerified && (
