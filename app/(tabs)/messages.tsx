@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,118 +8,196 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuthStore } from '@/store/authStore';
-import { mockConversations, mockUsers, formatTimeAgo } from '@/services/mockData';
+import {
+  fetchConversations,
+  fetchMessages,
+  sendMessage,
+  markConversationAsRead,
+  getConversationDetails,
+  subscribeToMessages,
+  subscribeToConversations,
+  unsubscribe,
+  ConversationWithDetails,
+  ChatMessage,
+} from '@/lib/chat';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
-import { Conversation, Message } from '@/types';
 
 type ViewMode = 'list' | 'chat';
 
-interface ChatMessage {
-  id: string;
-  text: string;
-  isMe: boolean;
-  timestamp: Date;
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
 }
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ conversationId?: string }>();
   const { isAuthenticated, user } = useAuthStore();
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(
+    null
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const flatListRef = useRef<FlatList>(null);
+  const messagesChannelRef = useRef<RealtimeChannel | null>(null);
+  const conversationsChannelRef = useRef<RealtimeChannel | null>(null);
+
+  const loadConversations = useCallback(async () => {
+    if (!user) return;
+    const data = await fetchConversations(user.id);
+    setConversations(data);
+    setIsLoading(false);
+  }, [user]);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    if (!user) return;
+    setIsLoadingMessages(true);
+    const data = await fetchMessages(conversationId, user.id);
+    setMessages(data);
+    setIsLoadingMessages(false);
+    await markConversationAsRead(conversationId, user.id);
+  }, [user]);
 
   useEffect(() => {
-    if (selectedConversation) {
-      setMessages([
-        {
-          id: '1',
-          text: 'Hi! Is this still available?',
-          isMe: false,
-          timestamp: new Date(Date.now() - 60 * 60 * 1000),
-        },
-        {
-          id: '2',
-          text: 'Yes, it is! Are you interested?',
-          isMe: true,
-          timestamp: new Date(Date.now() - 55 * 60 * 1000),
-        },
-        {
-          id: '3',
-          text: "Great! Can we meet tomorrow on campus?",
-          isMe: false,
-          timestamp: new Date(Date.now() - 50 * 60 * 1000),
-        },
-        {
-          id: '4',
-          text: selectedConversation.lastMessage?.content || 'Sure, that works!',
-          isMe: selectedConversation.lastMessage?.senderId !== user?.id,
-          timestamp: selectedConversation.lastMessage?.createdAt || new Date(),
-        },
-      ]);
+    if (isAuthenticated && user) {
+      loadConversations();
+
+      conversationsChannelRef.current = subscribeToConversations(user.id, () => {
+        loadConversations();
+      });
+
+      return () => {
+        if (conversationsChannelRef.current) {
+          unsubscribe(conversationsChannelRef.current);
+        }
+      };
     }
-  }, [selectedConversation, user?.id]);
+  }, [isAuthenticated, user, loadConversations]);
 
-  const handleSendMessage = () => {
-    if (!inputText.trim()) return;
+  useEffect(() => {
+    if (params.conversationId && user && isAuthenticated) {
+      const openConversation = async () => {
+        const details = await getConversationDetails(params.conversationId!, user.id);
+        if (details) {
+          setSelectedConversation(details);
+          setViewMode('chat');
+          loadMessages(params.conversationId!);
+        }
+      };
+      openConversation();
+    }
+  }, [params.conversationId, user, isAuthenticated, loadMessages]);
 
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      isMe: true,
-      timestamp: new Date(),
-    };
+  useEffect(() => {
+    if (selectedConversation && user) {
+      if (messagesChannelRef.current) {
+        unsubscribe(messagesChannelRef.current);
+      }
 
-    setMessages((prev) => [...prev, newMessage]);
+      messagesChannelRef.current = subscribeToMessages(
+        selectedConversation.id,
+        user.id,
+        (newMessage) => {
+          if (!newMessage.isFromMe) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === newMessage.id)) return prev;
+              return [...prev, newMessage];
+            });
+            markConversationAsRead(selectedConversation.id, user.id);
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }
+        }
+      );
+
+      return () => {
+        if (messagesChannelRef.current) {
+          unsubscribe(messagesChannelRef.current);
+        }
+      };
+    }
+  }, [selectedConversation, user]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadConversations();
+    setIsRefreshing(false);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || !user || !selectedConversation || isSending) return;
+
+    const content = inputText.trim();
     setInputText('');
+    setIsSending(true);
+
+    const optimisticMessage: ChatMessage = {
+      id: `temp-${Date.now()}`,
+      content,
+      isFromMe: true,
+      isRead: false,
+      createdAt: new Date(),
+    };
+    setMessages((prev) => [...prev, optimisticMessage]);
 
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
 
-    setTimeout(() => {
-      const replyMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: getAutoReply(),
-        isMe: false,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, replyMessage]);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }, 1500);
+    const result = await sendMessage(selectedConversation.id, user.id, content);
+
+    if (result.error) {
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
+      setInputText(content);
+    } else if (result.message) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimisticMessage.id ? result.message! : m))
+      );
+    }
+
+    setIsSending(false);
   };
 
-  const getAutoReply = () => {
-    const replies = [
-      "Sounds good!",
-      "Let me check and get back to you.",
-      "I'm available this afternoon if that works?",
-      "Can you meet near the library?",
-      "Thanks for your interest!",
-    ];
-    return replies[Math.floor(Math.random() * replies.length)];
-  };
-
-  const handleOpenConversation = (conversation: Conversation) => {
+  const handleOpenConversation = async (conversation: ConversationWithDetails) => {
     setSelectedConversation(conversation);
     setViewMode('chat');
+    loadMessages(conversation.id);
   };
 
   const handleBackToList = () => {
     setViewMode('list');
     setSelectedConversation(null);
     setMessages([]);
+    loadConversations();
   };
 
   if (!isAuthenticated) {
@@ -145,10 +223,6 @@ export default function MessagesScreen() {
   }
 
   if (viewMode === 'chat' && selectedConversation) {
-    const otherParticipant = selectedConversation.participants.find(
-      (p) => p.id !== user?.id
-    ) || mockUsers[1];
-
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
@@ -163,14 +237,19 @@ export default function MessagesScreen() {
             </TouchableOpacity>
             <View style={styles.chatHeaderInfo}>
               <Avatar
-                name={otherParticipant.name}
-                uri={otherParticipant.avatar}
+                name={selectedConversation.otherParticipant.name}
+                uri={selectedConversation.otherParticipant.avatar}
                 size="md"
               />
               <View style={styles.chatHeaderText}>
-                <Text style={styles.chatHeaderName}>{otherParticipant.name}</Text>
+                <Text style={styles.chatHeaderName}>
+                  {selectedConversation.otherParticipant.name}
+                </Text>
                 <Text style={styles.chatHeaderStatus}>
-                  {otherParticipant.role}{otherParticipant.campus ? ` • ${otherParticipant.campus.shortName}` : ''}
+                  {selectedConversation.otherParticipant.role}
+                  {selectedConversation.otherParticipant.campusShortName
+                    ? ` • ${selectedConversation.otherParticipant.campusShortName}`
+                    : ''}
                 </Text>
               </View>
             </View>
@@ -183,65 +262,71 @@ export default function MessagesScreen() {
           {selectedConversation.listing && (
             <TouchableOpacity
               style={styles.listingReference}
-              onPress={() =>
-                router.push(`/listing/${selectedConversation.listing?.id}`)
-              }
+              onPress={() => router.push(`/listing/${selectedConversation.listing?.id}`)}
             >
-              <Image
-                source={{ uri: selectedConversation.listing.images[0] }}
-                style={styles.listingThumb}
-                contentFit="cover"
-              />
+              {selectedConversation.listing.image && (
+                <Image
+                  source={{ uri: selectedConversation.listing.image }}
+                  style={styles.listingThumb}
+                  contentFit="cover"
+                />
+              )}
               <View style={styles.listingRefContent}>
                 <Text style={styles.listingRefTitle} numberOfLines={1}>
                   {selectedConversation.listing.title}
                 </Text>
-                <Text style={styles.listingRefPrice}>
-                  ${selectedConversation.listing.price}
-                </Text>
+                <Text style={styles.listingRefPrice}>R{selectedConversation.listing.price}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.text.gray} />
             </TouchableOpacity>
           )}
 
           {/* Messages */}
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.messageBubble,
-                  item.isMe ? styles.myMessage : styles.theirMessage,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.messageText,
-                    item.isMe ? styles.myMessageText : styles.theirMessageText,
-                  ]}
+          {isLoadingMessages ? (
+            <View style={styles.loadingMessages}>
+              <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View
+                  style={[styles.messageBubble, item.isFromMe ? styles.myMessage : styles.theirMessage]}
                 >
-                  {item.text}
-                </Text>
-                <Text
-                  style={[
-                    styles.messageTime,
-                    item.isMe ? styles.myMessageTime : styles.theirMessageTime,
-                  ]}
-                >
-                  {item.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
-              </View>
-            )}
-            contentContainerStyle={styles.messagesContent}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-          />
+                  <Text
+                    style={[
+                      styles.messageText,
+                      item.isFromMe ? styles.myMessageText : styles.theirMessageText,
+                    ]}
+                  >
+                    {item.content}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.messageTime,
+                      item.isFromMe ? styles.myMessageTime : styles.theirMessageTime,
+                    ]}
+                  >
+                    {item.createdAt.toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </View>
+              )}
+              contentContainerStyle={styles.messagesContent}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              ListEmptyComponent={
+                <View style={styles.emptyMessages}>
+                  <Text style={styles.emptyMessagesText}>
+                    No messages yet. Start the conversation!
+                  </Text>
+                </View>
+              }
+            />
+          )}
 
           {/* Input */}
           <View style={styles.inputContainer}>
@@ -255,18 +340,19 @@ export default function MessagesScreen() {
               maxLength={1000}
             />
             <TouchableOpacity
-              style={[
-                styles.sendButton,
-                inputText.trim() && styles.sendButtonActive,
-              ]}
+              style={[styles.sendButton, inputText.trim() && styles.sendButtonActive]}
               onPress={handleSendMessage}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || isSending}
             >
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim() ? colors.text.white : colors.text.gray}
-              />
+              {isSending ? (
+                <ActivityIndicator size="small" color={colors.text.white} />
+              ) : (
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={inputText.trim() ? colors.text.white : colors.text.gray}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -274,49 +360,40 @@ export default function MessagesScreen() {
     );
   }
 
-  const renderConversationItem = ({ item }: { item: Conversation }) => {
-    const otherParticipant = item.participants.find((p) => p.id !== user?.id) || mockUsers[1];
-
-    return (
-      <TouchableOpacity
-        style={styles.conversationItem}
-        onPress={() => handleOpenConversation(item)}
-      >
-        <Avatar
-          name={otherParticipant.name}
-          uri={otherParticipant.avatar}
-          size="lg"
-        />
-        <View style={styles.conversationContent}>
-          <View style={styles.conversationHeader}>
-            <Text style={styles.conversationName}>{otherParticipant.name}</Text>
-            <Text style={styles.conversationTime}>
-              {formatTimeAgo(item.updatedAt)}
-            </Text>
-          </View>
-          {item.listing && (
-            <Text style={styles.conversationListing} numberOfLines={1}>
-              Re: {item.listing.title}
-            </Text>
-          )}
-          <Text
-            style={[
-              styles.conversationMessage,
-              item.unreadCount > 0 && styles.conversationMessageUnread,
-            ]}
-            numberOfLines={1}
-          >
-            {item.lastMessage?.content || 'No messages yet'}
-          </Text>
+  const renderConversationItem = ({ item }: { item: ConversationWithDetails }) => (
+    <TouchableOpacity style={styles.conversationItem} onPress={() => handleOpenConversation(item)}>
+      <Avatar name={item.otherParticipant.name} uri={item.otherParticipant.avatar} size="lg" />
+      <View style={styles.conversationContent}>
+        <View style={styles.conversationHeader}>
+          <Text style={styles.conversationName}>{item.otherParticipant.name}</Text>
+          <Text style={styles.conversationTime}>{formatTimeAgo(item.updatedAt)}</Text>
         </View>
-        {item.unreadCount > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
-          </View>
+        {item.listing && (
+          <Text style={styles.conversationListing} numberOfLines={1}>
+            Re: {item.listing.title}
+          </Text>
         )}
-      </TouchableOpacity>
-    );
-  };
+        <Text
+          style={[
+            styles.conversationMessage,
+            item.unreadCount > 0 && styles.conversationMessageUnread,
+          ]}
+          numberOfLines={1}
+        >
+          {item.lastMessage
+            ? item.lastMessage.isFromMe
+              ? `You: ${item.lastMessage.content}`
+              : item.lastMessage.content
+            : 'No messages yet'}
+        </Text>
+      </View>
+      {item.unreadCount > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
@@ -325,10 +402,7 @@ export default function MessagesScreen() {
       <Text style={styles.emptyText}>
         Start a conversation by contacting a seller on a listing you're interested in.
       </Text>
-      <TouchableOpacity
-        style={styles.browseButton}
-        onPress={() => router.push('/(tabs)')}
-      >
+      <TouchableOpacity style={styles.browseButton} onPress={() => router.push('/(tabs)')}>
         <Text style={styles.browseButtonText}>Browse Listings</Text>
       </TouchableOpacity>
     </View>
@@ -340,15 +414,20 @@ export default function MessagesScreen() {
         <Text style={styles.headerTitle}>Messages</Text>
       </View>
 
-      <FlatList
-        data={mockConversations}
-        keyExtractor={(item) => item.id}
-        renderItem={renderConversationItem}
-        ListEmptyComponent={renderEmptyList}
-        contentContainerStyle={
-          mockConversations.length === 0 ? styles.emptyList : styles.listContent
-        }
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+        </View>
+      ) : (
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => item.id}
+          renderItem={renderConversationItem}
+          ListEmptyComponent={renderEmptyList}
+          contentContainerStyle={conversations.length === 0 ? styles.emptyList : styles.listContent}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -357,6 +436,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.DEFAULT,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -567,9 +651,25 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.primary.DEFAULT,
   },
+  loadingMessages: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   messagesContent: {
     padding: spacing.lg,
     paddingBottom: spacing.xl,
+    flexGrow: 1,
+  },
+  emptyMessages: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['4xl'],
+  },
+  emptyMessagesText: {
+    fontSize: fontSize.base,
+    color: colors.text.gray,
   },
   messageBubble: {
     maxWidth: '80%',

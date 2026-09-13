@@ -8,6 +8,7 @@ import {
   Dimensions,
   Share,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -19,6 +20,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { RatingBadge, Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/authStore';
 import { fetchListingById, toggleFavourite } from '@/lib/listings';
+import { getOrCreateConversation } from '@/lib/chat';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing } from '@/types';
 
@@ -46,6 +48,7 @@ export default function ListingDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isContactingLoading, setIsContactingLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -106,8 +109,31 @@ export default function ListingDetailScreen() {
     }
   };
 
-  const handleContactSeller = () => {
-    router.push('/(tabs)/messages');
+  const handleContactSeller = async () => {
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
+
+    if (!listing) return;
+
+    if (listing.seller.id === user.id) {
+      Alert.alert('Your Listing', "You can't message yourself!");
+      return;
+    }
+
+    setIsContactingLoading(true);
+    const result = await getOrCreateConversation(user.id, listing.seller.id, listing.id);
+    setIsContactingLoading(false);
+
+    if (result.error) {
+      Alert.alert('Error', 'Could not start conversation. Please try again.');
+      return;
+    }
+
+    if (result.conversationId) {
+      router.push(`/(tabs)/messages?conversationId=${result.conversationId}`);
+    }
   };
 
   const formatPrice = () => {
@@ -282,10 +308,17 @@ export default function ListingDetailScreen() {
             <Text style={styles.bottomPriceValue}>{formatPrice()}</Text>
           </View>
           <Button
-            title="Contact Seller"
+            title={isContactingLoading ? 'Opening...' : 'Contact Seller'}
             onPress={handleContactSeller}
-            icon={<Ionicons name="chatbubble-outline" size={18} color={colors.text.white} />}
+            icon={
+              isContactingLoading ? (
+                <ActivityIndicator size="small" color={colors.text.white} />
+              ) : (
+                <Ionicons name="chatbubble-outline" size={18} color={colors.text.white} />
+              )
+            }
             iconPosition="left"
+            disabled={isContactingLoading}
           />
         </View>
       </SafeAreaView>

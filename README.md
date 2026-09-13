@@ -7,9 +7,11 @@ A React Native mobile application for campus marketplace - buy, sell, and share 
 - **Browse Listings** - Explore textbooks, housing, tutoring, rides, shifts, electronics, and furniture
 - **Search & Filter** - Find what you need with powerful search and filtering
 - **Post Listings** - Create listings with photos, pricing, and descriptions
-- **In-App Messaging** - Chat securely with other students (no phone numbers shared)
+- **Real-Time Messaging** - Chat securely with other students with live message updates (no phone numbers shared)
+- **Contact Seller** - One-click to start or resume conversations about listings
 - **User Profiles** - Manage your listings, favorites, and settings
 - **Campus Communities** - Connect with verified students at your campus
+- **SA University Support** - All 26 public universities and 9 major private colleges
 
 ## Tech Stack
 
@@ -174,10 +176,51 @@ Categories seeded: Textbooks, Housing, Tutoring, Rides, Shifts, Electronics, Fur
 - **Favourites**: Save listings to your favourites
 - **Detail View**: Full listing info, seller profile, contact button
 
-### Future Enhancements (Not in Step 2)
+### Chat & Messaging (Step 3)
 
-- In-app messaging (Step 3)
+The app includes real-time chat functionality using Supabase Realtime.
+
+**Features:**
+- **Messages Tab**: View all conversations with other students
+- **Real-time Updates**: New messages appear instantly (no refresh needed)
+- **Contact Seller**: Click "Contact Seller" on any listing to start/resume a conversation
+- **Conversation Context**: Each conversation links to the relevant listing
+- **Unread Counts**: See unread message counts per conversation
+- **Read Receipts**: Messages are marked as read when opened
+
+**Migration (Step 3):**
+
+```sql
+-- Run in Supabase SQL Editor (after Step 1 and 2 migrations):
+-- supabase/migrations/00003_chat.sql
+```
+
+This creates:
+- `conversations` table: Links two participants with optional listing reference
+- `messages` table: Individual messages with sender, content, read status
+- RLS policies: Only participants can read/write their conversations
+- Helper functions: `get_or_create_conversation`, `mark_conversation_read`, `get_unread_count`
+- Realtime: Messages table enabled for live subscriptions
+
+**Enable Realtime:**
+
+The migration automatically enables realtime on the messages table. If you need to verify or enable manually:
+1. Go to Supabase Dashboard > Database > Replication
+2. Ensure `messages` table is in the publication list
+
+**Testing Chat:**
+
+1. Create two test users with different campus emails
+2. Sign in as User A, browse listings, click "Contact Seller" on User B's listing
+3. Send a message
+4. Sign in as User B, go to Messages tab, see the conversation
+5. Reply - User A will see it in real-time if they have the conversation open
+
+### Future Enhancements (Not in Step 3)
+
 - Admin moderation panel (Step 4)
+- Report user/listing functionality
+- Block user feature
 - Student number verification APIs
 - Campus SSO integration
 - TVET colleges (50+, pending email domain standardization)
