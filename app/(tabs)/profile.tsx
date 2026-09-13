@@ -246,6 +246,23 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Admin Section - Only visible to admins */}
+      {user?.role === 'admin' && (
+        <View style={styles.settingsSection}>
+          <Text style={styles.settingsSectionTitle}>Admin</Text>
+          <TouchableOpacity
+            style={styles.settingsItem}
+            onPress={() => router.push('/admin')}
+          >
+            <View style={styles.settingsItemLeft}>
+              <Ionicons name="shield" size={20} color={colors.accent.red} />
+              <Text style={[styles.settingsItemText, { color: colors.accent.red }]}>Admin Panel</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.text.gray} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Support Section */}
       <View style={styles.settingsSection}>
         <Text style={styles.settingsSectionTitle}>Support</Text>

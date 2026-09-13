@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { RatingBadge, Badge } from '@/components/ui/Badge';
+import { ReportSheet } from '@/components/ReportSheet';
 import { useAuthStore } from '@/store/authStore';
 import { fetchListingById, toggleFavourite } from '@/lib/listings';
 import { getOrCreateConversation } from '@/lib/chat';
@@ -49,6 +50,7 @@ export default function ListingDetailScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isContactingLoading, setIsContactingLoading] = useState(false);
+  const [showReportSheet, setShowReportSheet] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -167,6 +169,11 @@ export default function ListingDetailScreen() {
                   color={isFavorite ? colors.accent.red : colors.text.dark}
                 />
               </TouchableOpacity>
+              {user && listing?.seller.id !== user.id && (
+                <TouchableOpacity style={styles.headerButton} onPress={() => setShowReportSheet(true)}>
+                  <Ionicons name="flag-outline" size={22} color={colors.text.dark} />
+                </TouchableOpacity>
+              )}
             </View>
           ),
         }}
@@ -322,6 +329,17 @@ export default function ListingDetailScreen() {
           />
         </View>
       </SafeAreaView>
+
+      {/* Report Sheet */}
+      {listing && (
+        <ReportSheet
+          visible={showReportSheet}
+          onClose={() => setShowReportSheet(false)}
+          targetType="listing"
+          targetId={listing.id}
+          targetName={listing.title}
+        />
+      )}
     </>
   );
 }

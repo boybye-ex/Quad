@@ -9,6 +9,8 @@ A React Native mobile application for campus marketplace - buy, sell, and share 
 - **Post Listings** - Create listings with photos, pricing, and descriptions
 - **Real-Time Messaging** - Chat securely with other students with live message updates (no phone numbers shared)
 - **Contact Seller** - One-click to start or resume conversations about listings
+- **Report Content** - Flag inappropriate listings or users for admin review
+- **Admin Panel** - Full moderation tools for admins (users, listings, reports)
 - **User Profiles** - Manage your listings, favorites, and settings
 - **Campus Communities** - Connect with verified students at your campus
 - **SA University Support** - All 26 public universities and 9 major private colleges
@@ -216,11 +218,64 @@ The migration automatically enables realtime on the messages table. If you need 
 4. Sign in as User B, go to Messages tab, see the conversation
 5. Reply - User A will see it in real-time if they have the conversation open
 
-### Future Enhancements (Not in Step 3)
+### Admin Panel & Reports (Step 4)
 
-- Admin moderation panel (Step 4)
-- Report user/listing functionality
+The app includes a full admin panel for moderation and a user reporting system.
+
+**Admin Features:**
+- **Dashboard**: Overview stats (users, listings, reports, messages)
+- **Users Management**: View all users, verify/unverify, suspend/unsuspend
+- **Listings Moderation**: Approve, hide, or delete any listing
+- **Reports Queue**: View and resolve user reports (spam, scam, harassment, etc.)
+
+**User Reporting:**
+- Students can report listings via the flag icon on listing detail pages
+- Report reasons: Spam, Inappropriate, Scam, Harassment, Fake Listing, Prohibited Item, Other
+- Reports are confidential and reviewed by admins
+
+**Migration (Step 4):**
+
+```sql
+-- Run in Supabase SQL Editor (after Steps 1-3):
+-- supabase/migrations/00004_admin_reports.sql
+```
+
+This creates:
+- `reports` table: Reporter, target (listing/user/message), reason, status, resolution
+- RLS policies: Users can create and view own reports; admins can view/resolve all
+- Admin functions: `get_admin_stats`, `admin_get_users`, `admin_get_listings`, `admin_get_reports`
+- Admin actions: `admin_verify_user`, `admin_suspend_user`, `admin_update_listing_status`, `admin_resolve_report`
+- User function: `create_report` for submitting reports
+
+**Accessing Admin Panel:**
+
+1. Sign in as an admin user (role = 'admin')
+2. Go to Profile tab > Settings section
+3. Tap "Admin Panel" (only visible to admins)
+
+**Testing Admin Features:**
+
+1. Create an admin user and set their role:
+   ```sql
+   UPDATE profiles SET role = 'admin' WHERE email = 'your-admin@email.com';
+   ```
+2. Sign in as admin, go to Profile > Admin Panel
+3. View dashboard stats, manage users, moderate listings
+4. Sign in as a regular user, view a listing, tap flag icon to report
+5. Sign back in as admin, go to Reports to see and resolve the report
+
+**Seed Demo Reports:**
+
+```sql
+-- Run after having users and listings:
+-- supabase/seed_reports.sql
+-- This creates sample reports for testing the admin queue
+```
+
+### Future Enhancements (Not in Step 4)
+
 - Block user feature
+- Push notifications for new messages
 - Student number verification APIs
 - Campus SSO integration
 - TVET colleges (50+, pending email domain standardization)
