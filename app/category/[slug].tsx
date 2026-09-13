@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -13,63 +15,110 @@ import { Ionicons } from '@expo/vector-icons';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
 import { ListingCard } from '@/components/listings/ListingCard';
-import { mockCategories, getListingsByCategory } from '@/services/mockData';
+import { useAuthStore } from '@/store/authStore';
+import { fetchListings, fetchCategories, toggleFavourite, searchListings } from '@/lib/listings';
 import { colors, fontSize, fontWeight, spacing, borderRadius } from '@/constants/theme';
+import { Listing, Category } from '@/types';
 
-type SortOption = 'newest' | 'price-low' | 'price-high' | 'rating';
+type SortOption = 'newest' | 'price-low' | 'price-high';
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: 'newest', label: 'Newest' },
   { value: 'price-low', label: 'Price: Low to High' },
   { value: 'price-high', label: 'Price: High to Low' },
-  { value: 'rating', label: 'Top Rated' },
 ];
 
 export default function CategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
+  const { user } = useAuthStore();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showSortOptions, setShowSortOptions] = useState(false);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const category = mockCategories.find((c) => c.slug === slug);
-  const allListings = getListingsByCategory(slug);
+  const category = categories.find((c) => c.slug === slug);
 
-  const filteredListings = useMemo(() => {
-    let filtered = [...allListings];
-
+  const loadData = useCallback(async () => {
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (l) =>
-          l.title.toLowerCase().includes(query) ||
-          l.description.toLowerCase().includes(query)
+      const results = await searchListings(
+        {
+          query: searchQuery,
+          category: slug === 'all' ? undefined : slug,
+          sortBy,
+        },
+        user?.id
       );
+      setListings(results);
+    } else {
+      const data = await fetchListings({
+        category: slug,
+        userId: user?.id,
+      });
+
+      let sortedData = [...data];
+      switch (sortBy) {
+        case 'price-low':
+          sortedData.sort((a, b) => a.price - b.price);
+          break;
+        case 'price-high':
+          sortedData.sort((a, b) => b.price - a.price);
+          break;
+        default:
+          break;
+      }
+      setListings(sortedData);
     }
+  }, [slug, searchQuery, sortBy, user?.id]);
 
-    switch (sortBy) {
-      case 'newest':
-        filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        break;
-      case 'price-low':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
+  useEffect(() => {
+    const init = async () => {
+      setIsLoading(true);
+      const cats = await fetchCategories();
+      setCategories([{ id: 'all', name: 'All', slug: 'all', icon: 'grid-outline', count: 0 }, ...cats]);
+      await loadData();
+      setIsLoading(false);
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      loadData();
     }
+  }, [slug, sortBy]);
 
-    return filtered;
-  }, [allListings, searchQuery, sortBy]);
-
-  const handleFavorite = (id: string) => {
-    console.log('Toggle favorite:', id);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData();
+    setIsRefreshing(false);
   };
 
-  const renderListingItem = ({ item }: { item: typeof allListings[0] }) => (
+  const handleSearch = async () => {
+    setIsLoading(true);
+    await loadData();
+    setIsLoading(false);
+  };
+
+  const handleFavorite = async (id: string) => {
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
+
+    const result = await toggleFavourite(id, user.id);
+    if (!result.error) {
+      setListings((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, isFavorite: result.isFavourite } : l))
+      );
+    }
+  };
+
+  const renderListingItem = ({ item }: { item: Listing }) => (
     <View style={styles.listingItem}>
       <ListingCard listing={item} variant="compact" onFavorite={handleFavorite} />
     </View>
@@ -81,6 +130,7 @@ export default function CategoryScreen() {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
+          onSubmit={handleSearch}
           placeholder={`Search in ${category?.name || 'category'}...`}
           showFilter={false}
         />
@@ -103,7 +153,7 @@ export default function CategoryScreen() {
         </TouchableOpacity>
 
         <Text style={styles.resultsCount}>
-          {filteredListings.length} result{filteredListings.length !== 1 ? 's' : ''}
+          {listings.length} result{listings.length !== 1 ? 's' : ''}
         </Text>
       </View>
 
@@ -112,10 +162,7 @@ export default function CategoryScreen() {
           {sortOptions.map((option) => (
             <TouchableOpacity
               key={option.value}
-              style={[
-                styles.sortOption,
-                sortBy === option.value && styles.sortOptionActive,
-              ]}
+              style={[styles.sortOption, sortBy === option.value && styles.sortOptionActive]}
               onPress={() => {
                 setSortBy(option.value);
                 setShowSortOptions(false);
@@ -139,7 +186,7 @@ export default function CategoryScreen() {
 
       {/* Category chips for quick switching */}
       <View style={styles.categoryChips}>
-        {mockCategories.slice(0, 6).map((cat) => (
+        {categories.slice(0, 6).map((cat) => (
           <Chip
             key={cat.id}
             label={cat.name}
@@ -164,12 +211,32 @@ export default function CategoryScreen() {
     </View>
   );
 
+  if (isLoading && listings.length === 0) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            headerTitle: category?.name || slug === 'all' ? 'All Listings' : 'Category',
+            headerBackTitle: 'Back',
+            headerTintColor: colors.primary.DEFAULT,
+          }}
+        />
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+          </View>
+        </SafeAreaView>
+      </>
+    );
+  }
+
   return (
     <>
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: category?.name || 'Category',
+          headerTitle: category?.name || (slug === 'all' ? 'All Listings' : 'Category'),
           headerBackTitle: 'Back',
           headerTintColor: colors.primary.DEFAULT,
           headerStyle: {
@@ -184,13 +251,16 @@ export default function CategoryScreen() {
 
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <FlatList
-          data={filteredListings}
+          data={listings}
           keyExtractor={(item) => item.id}
           renderItem={renderListingItem}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          }
         />
       </SafeAreaView>
     </>
@@ -201,6 +271,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.DEFAULT,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerContent: {
     paddingBottom: spacing.md,

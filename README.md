@@ -54,14 +54,15 @@ npm start
 2. **Run Migrations**
    ```bash
    # Option A: Using Supabase Dashboard
-   # Go to SQL Editor and run the contents of:
+   # Go to SQL Editor and run the contents of (in order):
    # - supabase/migrations/00001_initial_schema.sql
+   # - supabase/migrations/00002_listings.sql
    # - supabase/seed.sql
+   # - supabase/seed_listings.sql (after creating a test user)
 
    # Option B: Using Supabase CLI
    supabase link --project-ref your-project-ref
    supabase db push
-   supabase db seed
    ```
 
 3. **Configure Environment Variables**
@@ -137,8 +138,46 @@ Students must register with their campus email. Each campus has specific allowed
 Personal email providers (Gmail, Yahoo, Hotmail, etc.) are blocked.
 Alumni domains are not allowed in v1 (current students only).
 
-### Future Enhancements (Not in Step 1)
+### Storage Bucket Setup (Step 2)
 
+The app uses Supabase Storage for listing images. The migration creates a `listing-images` bucket, but you may need to verify it in the dashboard:
+
+1. Go to Supabase Dashboard > Storage
+2. Verify `listing-images` bucket exists (created by migration)
+3. If not, create it manually:
+   - Name: `listing-images`
+   - Public: Yes
+   - File size limit: 5MB
+   - Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `image/gif`
+
+The storage policies allow:
+- Public read access to all images
+- Authenticated users can upload to their own folder (`{user_id}/`)
+- Users can only modify/delete their own images
+
+### Demo Listings (Step 2)
+
+After creating a test user, seed demo listings:
+
+```sql
+-- Run supabase/seed_listings.sql after creating at least one verified user
+-- The seed creates 15 realistic listings across UCT, Wits, Stellenbosch, UJ, and UNISA
+```
+
+Categories seeded: Textbooks, Housing, Tutoring, Rides, Shifts, Electronics, Furniture
+
+### Listings Features (Step 2)
+
+- **Browse**: View fresh listings from all campuses
+- **Search**: Full-text search with category and price filters
+- **Post**: Upload photos, set pricing (fixed/hourly/monthly/free), add tags
+- **Favourites**: Save listings to your favourites
+- **Detail View**: Full listing info, seller profile, contact button
+
+### Future Enhancements (Not in Step 2)
+
+- In-app messaging (Step 3)
+- Admin moderation panel (Step 4)
 - Student number verification APIs
 - Campus SSO integration
 - TVET colleges (50+, pending email domain standardization)

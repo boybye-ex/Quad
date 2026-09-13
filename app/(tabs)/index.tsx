@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,27 +20,47 @@ import { LiveBadge } from '@/components/ui/Badge';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { CategoryChips } from '@/components/categories/CategoryChips';
 import { useAuthStore } from '@/store/authStore';
-import {
-  mockCategories,
-  mockListings,
-  getFreshListings,
-  appStats,
-} from '@/services/mockData';
+import { fetchFreshListings, fetchCategories, toggleFavourite, getCategoryCounts } from '@/lib/listings';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { Listing, Category } from '@/types';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { selectedCampus, isAuthenticated } = useAuthStore();
+  const { selectedCampus, isAuthenticated, user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
-  const freshListings = getFreshListings(6);
+  const loadData = useCallback(async () => {
+    try {
+      const [listingsData, categoriesData, counts] = await Promise.all([
+        fetchFreshListings(10, user?.id),
+        fetchCategories(),
+        getCategoryCounts(),
+      ]);
+      setListings(listingsData);
+      setCategories([{ id: 'all', name: 'All', slug: 'all', icon: 'grid-outline', count: Object.values(counts).reduce((a, b) => a + b, 0) }, ...categoriesData]);
+      setCategoryCounts(counts);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
-  const onRefresh = useCallback(() => {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -47,17 +68,45 @@ export default function HomeScreen() {
     }
   };
 
-  const handleFavorite = (id: string) => {
-    console.log('Toggle favorite:', id);
+  const handleFavorite = async (id: string) => {
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
+
+    const result = await toggleFavourite(id, user.id);
+    if (!result.error) {
+      setListings((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, isFavorite: result.isFavourite } : l))
+      );
+    }
   };
+
+  const handleCategorySelect = (slug: string) => {
+    setSelectedCategory(slug);
+    if (slug !== 'all') {
+      router.push(`/category/${slug}`);
+    }
+  };
+
+  const totalListings = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+  const activeCategories = Object.keys(categoryCounts).length;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -84,8 +133,7 @@ export default function HomeScreen() {
           <Text style={styles.heroTitle}>Everything you need,</Text>
           <Text style={styles.heroTitleGreen}>from the people next door.</Text>
           <Text style={styles.heroDescription}>
-            A secure noticeboard for your campus: course books, rooms, tutoring, 
-            shifts, and rides.
+            A secure noticeboard for your campus: course books, rooms, tutoring, shifts, and rides.
           </Text>
         </View>
 
@@ -103,7 +151,7 @@ export default function HomeScreen() {
         <View style={styles.actionButtons}>
           <Button
             title="Browse the board"
-            onPress={() => setSelectedCategory('all')}
+            onPress={() => router.push('/category/all')}
             icon={<Ionicons name="arrow-forward" size={16} color={colors.text.white} />}
           />
           <TouchableOpacity style={styles.postButton} onPress={() => router.push('/(tabs)/post')}>
@@ -115,25 +163,25 @@ export default function HomeScreen() {
         {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{appStats.students}</Text>
-            <Text style={styles.statLabel}>Students</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{appStats.listings}</Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{appStats.campuses}</Text>
+            <Text style={styles.statValue}>35</Text>
             <Text style={styles.statLabel}>Campuses</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{appStats.verification}</Text>
+            <Text style={styles.statValue}>{totalListings || '0'}</Text>
+            <Text style={styles.statLabel}>Listings</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{activeCategories || '0'}</Text>
+            <Text style={styles.statLabel}>Categories</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>100%</Text>
             <Text style={styles.statLabel}>Student-verified</Text>
           </View>
         </View>
 
         {/* Campus Rideshare Promo */}
-        <TouchableOpacity style={styles.promoCard}>
+        <TouchableOpacity style={styles.promoCard} onPress={() => router.push('/category/rides')}>
           <View style={styles.promoIconContainer}>
             <Ionicons name="car" size={24} color={colors.primary.DEFAULT} />
           </View>
@@ -142,9 +190,7 @@ export default function HomeScreen() {
             <View style={styles.promoBadge}>
               <Text style={styles.promoBadgeText}>Weekend trips</Text>
             </View>
-            <Text style={styles.promoDescription}>
-              Share rides home, airports & split gas
-            </Text>
+            <Text style={styles.promoDescription}>Share rides home, airports & split petrol</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.text.gray} />
         </TouchableOpacity>
@@ -160,27 +206,33 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <FlatList
-          horizontal
-          data={freshListings}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ListingCard listing={item} onFavorite={handleFavorite} />
-          )}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.listingsContainer}
-        />
+        {listings.length > 0 ? (
+          <FlatList
+            horizontal
+            data={listings}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <ListingCard listing={item} onFavorite={handleFavorite} />}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.listingsContainer}
+          />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="cube-outline" size={48} color={colors.text.gray} />
+            <Text style={styles.emptyText}>No listings yet</Text>
+            <Text style={styles.emptySubtext}>Be the first to post!</Text>
+          </View>
+        )}
 
         {/* Explore Categories */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Explore categories</Text>
-          <Text style={styles.activeHubs}>5 active hubs</Text>
+          <Text style={styles.activeHubs}>{activeCategories} active hubs</Text>
         </View>
 
         <CategoryChips
-          categories={mockCategories}
+          categories={categories}
           selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
+          onSelectCategory={handleCategorySelect}
         />
 
         {/* Built by Students Section */}
@@ -189,11 +241,11 @@ export default function HomeScreen() {
             <Text style={styles.builtByTitle}>Built by students.</Text>
             <Text style={styles.builtByTitleGreen}>For students.</Text>
             <Text style={styles.builtByDescription}>
-              Buy, sell, share and connect — safely within your campus community. 
-              Verified .edu accounts keep it real.
+              Buy, sell, share and connect — safely within your campus community. Verified campus
+              accounts keep it real.
             </Text>
             <Button
-              title="Join quad"
+              title="Join Quad"
               onPress={() => router.push('/(auth)/sign-up')}
               icon={<Ionicons name="arrow-forward" size={16} color={colors.text.white} />}
             />
@@ -220,7 +272,7 @@ export default function HomeScreen() {
 function FeatureItem({ icon, text }: { icon: string; text: string }) {
   return (
     <View style={styles.featureItem}>
-      <Ionicons name={icon as any} size={16} color={colors.secondary.DEFAULT} />
+      <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={16} color={colors.secondary.DEFAULT} />
       <Text style={styles.featureText}>{text}</Text>
     </View>
   );
@@ -230,6 +282,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.DEFAULT,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -416,6 +473,22 @@ const styles = StyleSheet.create({
   listingsContainer: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing['3xl'],
+    paddingHorizontal: spacing.lg,
+  },
+  emptyText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.dark,
+    marginTop: spacing.md,
+  },
+  emptySubtext: {
+    fontSize: fontSize.base,
+    color: colors.text.gray,
+    marginTop: spacing.xs,
   },
   builtBySection: {
     backgroundColor: colors.background.cream,

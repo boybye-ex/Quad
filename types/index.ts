@@ -32,6 +32,8 @@ export interface Category {
 
 export type PriceType = 'fixed' | 'hourly' | 'monthly' | 'free';
 
+export type ListingStatus = 'active' | 'hidden' | 'deleted';
+
 export interface Listing {
   id: string;
   title: string;
@@ -47,6 +49,8 @@ export interface Listing {
   reviewCount?: number;
   tags?: string[];
   condition?: 'new' | 'like-new' | 'good' | 'fair';
+  status?: ListingStatus;
+  viewCount?: number;
   createdAt: Date;
   isFavorite?: boolean;
 }
