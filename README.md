@@ -49,6 +49,21 @@ cp .env.example .env
 npm start
 ```
 
+### Go Live
+
+The live Supabase project is already set up with all migrations applied.
+
+1. Copy `.env.example` to `.env`
+2. Get the anon key from [Supabase Dashboard > Settings > API](https://supabase.com/dashboard/project/tawjmefiddlpvualfunc/settings/api)
+3. Paste the anon key into `.env` (replace `your-anon-key-here`)
+4. Restart Expo: `npm start`
+
+```bash
+cp .env.example .env
+# Edit .env and paste your anon key
+npm start
+```
+
 ### Supabase Setup
 
 1. **Create a Supabase Project**
