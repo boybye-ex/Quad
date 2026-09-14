@@ -1,4 +1,3 @@
-// @ts-expect-error - polyfill has no types
 import 'react-native-url-polyfill/polyfill';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';

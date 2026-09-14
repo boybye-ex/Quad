@@ -17,7 +17,7 @@ A React Native mobile application for campus marketplace - buy, sell, and share 
 
 ## Tech Stack
 
-- **Framework**: React Native with Expo (SDK 57)
+- **Framework**: React Native with Expo (SDK 54) - Compatible with App Store Expo Go
 - **Navigation**: Expo Router (file-based routing)
 - **State Management**: Zustand + React Query
 - **Styling**: NativeWind (Tailwind CSS for React Native)
@@ -32,8 +32,11 @@ A React Native mobile application for campus marketplace - buy, sell, and share 
 - Node.js 18+
 - npm or yarn
 - Expo CLI
-- iOS Simulator (Mac) or Android Emulator
+- **Expo Go from the App Store** (iOS) or Google Play (Android) - SDK 54 is supported
+- iOS Simulator (Mac) or Android Emulator (optional)
 - Supabase account (free tier available)
+
+> **Note**: This app uses Expo SDK 54, which is compatible with the App Store version of Expo Go. Simply run `npx expo start` and scan the QR code with the Expo Go app from your device's app store.
 
 ### Installation
 
