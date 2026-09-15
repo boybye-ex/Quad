@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -6,9 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { PriceBadge, RatingBadge } from '@/components/ui/Badge';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { Listing } from '@/types';
 import { formatTimeAgo } from '@/services/mockData';
-import { colors, borderRadius, fontSize, fontWeight, spacing, shadows } from '@/constants/theme';
+import { borderRadius, fontSize, fontWeight, spacing, shadows } from '@/constants/theme';
 
 interface ListingCardProps {
   listing: Listing;
@@ -21,6 +22,8 @@ const CARD_WIDTH = screenWidth * 0.7;
 
 export function ListingCard({ listing, variant = 'default', onFavorite }: ListingCardProps) {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handlePress = () => {
     router.push(`/listing/${listing.id}`);
@@ -132,15 +135,16 @@ export function ListingCard({ listing, variant = 'default', onFavorite }: Listin
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: colors.background.white,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    marginRight: spacing.md,
-    ...shadows.md,
-  },
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    card: {
+      width: CARD_WIDTH,
+      backgroundColor: colors.background.white,
+      borderRadius: borderRadius.xl,
+      overflow: 'hidden',
+      marginRight: spacing.md,
+      ...shadows.md,
+    },
   compactCard: {
     width: '100%',
     marginRight: 0,

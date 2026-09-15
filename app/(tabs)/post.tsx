@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,9 +21,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Chip } from '@/components/ui/Chip';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchCategories, uploadListingImage, createListing, CreateListingInput } from '@/lib/listings';
 import { formatPrice } from '@/lib/format';
-import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { PriceType, Category } from '@/types';
 
 type Step = 'category' | 'details' | 'preview';
@@ -45,6 +46,8 @@ const conditions = [
 export default function PostScreen() {
   const router = useRouter();
   const { isAuthenticated, user, selectedCampus } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [step, setStep] = useState<Step>('category');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -583,11 +586,12 @@ function getCategoryIcon(slug: string): keyof typeof Ionicons.glyphMap {
   return icons[slug] || 'grid-outline';
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.DEFAULT,
-  },
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.DEFAULT,
+    },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -934,10 +938,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     gap: spacing.sm,
   },
-  previewNoteText: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    color: colors.text.gray,
-    lineHeight: 20,
-  },
-});
+    previewNoteText: {
+      flex: 1,
+      fontSize: fontSize.sm,
+      color: colors.text.gray,
+      lineHeight: 20,
+    },
+  });

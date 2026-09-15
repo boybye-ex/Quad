@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { Category } from '@/types';
-import { colors, borderRadius, fontSize, fontWeight, spacing, shadows } from '@/constants/theme';
+import { borderRadius, fontSize, fontWeight, spacing, shadows } from '@/constants/theme';
 
 interface CategoryChipsProps {
   categories: Category[];
@@ -31,6 +32,8 @@ export function CategoryChips({
   showCounts = true,
 }: CategoryChipsProps) {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handlePress = (category: Category) => {
     if (onSelectCategory) {
@@ -91,6 +94,8 @@ interface CategoryGridProps {
 
 export function CategoryGrid({ categories, onSelectCategory }: CategoryGridProps) {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handlePress = (category: Category) => {
     if (onSelectCategory) {
@@ -128,26 +133,27 @@ export function CategoryGrid({ categories, onSelectCategory }: CategoryGridProps
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-  },
-  chip: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    backgroundColor: colors.background.white,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginRight: spacing.sm,
-    minWidth: 72,
-    ...shadows.sm,
-  },
-  chipSelected: {
-    backgroundColor: colors.primary.DEFAULT,
-  },
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
+    },
+    chip: {
+      flexDirection: 'column',
+      alignItems: 'center',
+      backgroundColor: colors.background.white,
+      borderRadius: borderRadius.xl,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginRight: spacing.sm,
+      minWidth: 72,
+      ...shadows.sm,
+    },
+    chipSelected: {
+      backgroundColor: colors.primary.DEFAULT,
+    },
   iconContainer: {
     width: 40,
     height: 40,

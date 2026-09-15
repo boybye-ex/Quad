@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,9 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchListings, fetchCategories, toggleFavourite, searchListings } from '@/lib/listings';
-import { colors, fontSize, fontWeight, spacing, borderRadius } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius } from '@/constants/theme';
 import { Listing, Category } from '@/types';
 
 type SortOption = 'newest' | 'price-low' | 'price-high';
@@ -32,6 +33,8 @@ export default function CategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -267,12 +270,13 @@ export default function CategoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.DEFAULT,
-  },
-  loadingContainer: {
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.DEFAULT,
+    },
+    loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',

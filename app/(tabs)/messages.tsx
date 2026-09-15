@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import {
   fetchConversations,
   fetchMessages,
@@ -31,7 +32,7 @@ import {
   ConversationWithDetails,
   ChatMessage,
 } from '@/lib/chat';
-import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 
 type ViewMode = 'list' | 'chat';
 
@@ -53,6 +54,8 @@ export default function MessagesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const { isAuthenticated, user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
@@ -432,16 +435,17 @@ export default function MessagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.DEFAULT,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.DEFAULT,
+    },
+    loadingContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   header: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,

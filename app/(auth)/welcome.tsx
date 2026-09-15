@@ -1,13 +1,17 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui';
-import { colors, fontSize, fontWeight, spacing } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { fontSize, fontWeight, spacing } from '@/constants/theme';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -31,9 +35,9 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.features}>
-          <FeatureItem icon="checkmark-circle" text="Student-verified accounts" />
-          <FeatureItem icon="lock-closed" text="No phone numbers shared" />
-          <FeatureItem icon="school" text="Campus community only" />
+          <FeatureItem icon="checkmark-circle" text="Student-verified accounts" colors={colors} styles={styles} />
+          <FeatureItem icon="lock-closed" text="No phone numbers shared" colors={colors} styles={styles} />
+          <FeatureItem icon="school" text="Campus community only" colors={colors} styles={styles} />
         </View>
       </View>
 
@@ -58,7 +62,7 @@ export default function WelcomeScreen() {
   );
 }
 
-function FeatureItem({ icon, text }: { icon: string; text: string }) {
+function FeatureItem({ icon, text, colors, styles }: { icon: string; text: string; colors: ReturnType<typeof useThemeColors>; styles: ReturnType<typeof createStyles> }) {
   return (
     <View style={styles.featureItem}>
       <Ionicons name={icon as any} size={20} color={colors.secondary.DEFAULT} />
@@ -67,11 +71,12 @@ function FeatureItem({ icon, text }: { icon: string; text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.white,
-  },
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.white,
+    },
   content: {
     flex: 1,
     paddingHorizontal: spacing['2xl'],

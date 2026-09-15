@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,11 +16,14 @@ import { Picker } from '@react-native-picker/picker';
 
 import { Button, Input } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
-import { colors, fontSize, fontWeight, spacing, borderRadius } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { fontSize, fontWeight, spacing, borderRadius } from '@/constants/theme';
 
 export default function SignUpScreen() {
   const router = useRouter();
   const { register, isLoading, campuses, loadCampuses, validateEmailForCampus } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -226,12 +229,13 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.white,
-  },
-  keyboardView: {
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.white,
+    },
+    keyboardView: {
     flex: 1,
   },
   scrollContent: {

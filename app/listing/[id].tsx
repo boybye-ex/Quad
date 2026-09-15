@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,12 @@ import { Avatar } from '@/components/ui/Avatar';
 import { RatingBadge, Badge } from '@/components/ui/Badge';
 import { ReportSheet } from '@/components/ReportSheet';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchListingById, toggleFavourite } from '@/lib/listings';
 import { getOrCreateConversation } from '@/lib/chat';
 import { isPaymentsEnabled } from '@/lib/payments';
 import { formatPrice, formatOriginalPrice } from '@/lib/format';
-import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing } from '@/types';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -47,13 +48,15 @@ export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [listing, setListing] = useState<Listing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isContactingLoading, setIsContactingLoading] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
-  
+
   const paymentsEnabled = isPaymentsEnabled();
   const canShowPayButton = paymentsEnabled && user && listing?.seller.id !== user.id && listing?.priceType !== 'free';
 
@@ -371,11 +374,12 @@ export default function ListingDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.white,
-  },
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.white,
+    },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
