@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, borderRadius, fontSize, fontWeight, spacing } from '@/constants/theme';
+import { formatPrice, formatOriginalPrice, getPriceSuffix } from '@/lib/format';
 
 interface BadgeProps {
   label: string;
@@ -25,21 +26,16 @@ interface PriceBadgeProps {
 }
 
 export function PriceBadge({ price, originalPrice, priceType = 'fixed' }: PriceBadgeProps) {
-  const formatPrice = (amount: number) => {
-    if (priceType === 'free') return 'Free';
-    return `$${amount}`;
-  };
-
-  const suffix = priceType === 'hourly' ? '/hour' : priceType === 'monthly' ? '/month' : '';
+  const suffix = getPriceSuffix(priceType);
 
   return (
     <View style={styles.priceContainer}>
       <Text style={styles.price}>
-        {formatPrice(price)}
+        {formatPrice(price, priceType, { includeSuffix: false })}
         {suffix && <Text style={styles.priceSuffix}>{suffix}</Text>}
       </Text>
       {originalPrice && originalPrice > price && (
-        <Text style={styles.originalPrice}>${originalPrice}</Text>
+        <Text style={styles.originalPrice}>{formatOriginalPrice(originalPrice)}</Text>
       )}
     </View>
   );

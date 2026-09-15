@@ -96,7 +96,7 @@ INSERT INTO campuses (name, short_name, city, province, kind, allowed_email_doma
   ARRAY['vut.ac.za']);
 
 -- =============================================================================
--- SOUTH AFRICAN PRIVATE COLLEGES (9)
+-- SOUTH AFRICAN PRIVATE COLLEGES (10)
 -- =============================================================================
 
 INSERT INTO campuses (name, short_name, city, province, kind, allowed_email_domains) VALUES
@@ -126,7 +126,10 @@ INSERT INTO campuses (name, short_name, city, province, kind, allowed_email_doma
   ARRAY['mancosa.co.za']),
 
 ('Boston City Campus', 'Boston', 'Johannesburg', 'Gauteng', 'private_college', 
-  ARRAY['boston.co.za']);
+  ARRAY['boston.co.za']),
+
+('Boston Media House', 'BMH', 'Johannesburg', 'Gauteng', 'private_college', 
+  ARRAY['myboston.co.za', 'bostonmediahouse.ac.za']);
 
 -- =============================================================================
 -- SOUTH AFRICAN PUBLIC TVET COLLEGES (50)
@@ -322,9 +325,9 @@ INSERT INTO campuses (name, short_name, city, province, kind, allowed_email_doma
 COMMENT ON TABLE campuses IS '
 Quad Campus Directory - South African Universities and Colleges
 
-Total: 85 institutions
+Total: 86 institutions
 - 26 Public Universities (all provinces)
-- 9 Private Colleges (major institutions)
+- 10 Private Colleges (major institutions including Boston Media House)
 - 50 Public TVET Colleges (all provinces)
 
 TVET Email Domain Notes:
