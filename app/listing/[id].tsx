@@ -23,6 +23,7 @@ import { useAuthStore } from '@/store/authStore';
 import { fetchListingById, toggleFavourite } from '@/lib/listings';
 import { getOrCreateConversation } from '@/lib/chat';
 import { isPaymentsEnabled } from '@/lib/payments';
+import { formatPrice, formatOriginalPrice } from '@/lib/format';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing } from '@/types';
 
@@ -158,12 +159,7 @@ export default function ListingDetailScreen() {
     router.push(`/checkout?listingId=${listing.id}`);
   };
 
-  const formatPrice = () => {
-    if (listing.priceType === 'free') return 'Free';
-    const suffix =
-      listing.priceType === 'hourly' ? '/hour' : listing.priceType === 'monthly' ? '/month' : '';
-    return `R${listing.price}${suffix}`;
-  };
+  const displayPrice = () => formatPrice(listing.price, listing.priceType);
 
   return (
     <>
@@ -245,9 +241,9 @@ export default function ListingDetailScreen() {
           {/* Price and Category */}
           <View style={styles.priceRow}>
             <View>
-              <Text style={styles.price}>{formatPrice()}</Text>
+              <Text style={styles.price}>{displayPrice()}</Text>
               {listing.originalPrice && listing.originalPrice > listing.price && (
-                <Text style={styles.originalPrice}>R{listing.originalPrice}</Text>
+                <Text style={styles.originalPrice}>{formatOriginalPrice(listing.originalPrice)}</Text>
               )}
             </View>
             <Badge label={listing.category.name} variant="outline" />
@@ -332,7 +328,7 @@ export default function ListingDetailScreen() {
         <View style={styles.bottomContent}>
           <View style={styles.bottomPrice}>
             <Text style={styles.bottomPriceLabel}>Price</Text>
-            <Text style={styles.bottomPriceValue}>{formatPrice()}</Text>
+            <Text style={styles.bottomPriceValue}>{displayPrice()}</Text>
           </View>
           <View style={styles.bottomButtons}>
             {canShowPayButton && (

@@ -13,7 +13,7 @@ A React Native mobile application for campus marketplace - buy, sell, and share 
 - **Admin Panel** - Full moderation tools for admins (users, listings, reports)
 - **User Profiles** - Manage your listings, favorites, and settings
 - **Campus Communities** - Connect with verified students at your campus
-- **SA University Support** - All 26 public universities and 9 major private colleges
+- **SA University Support** - All 26 public universities and 10 major private colleges
 
 ## Tech Stack
 
@@ -134,7 +134,7 @@ npm run web
 
 ### Seeded Campuses
 
-The database includes all 26 South African public universities and 9 major private colleges:
+The database includes all 26 South African public universities and 10 major private colleges:
 
 **Public Universities (26):**
 - Western Cape: UCT, Stellenbosch, UWC, CPUT
@@ -147,8 +147,8 @@ The database includes all 26 South African public universities and 9 major priva
 - Northern Cape: SPU
 - Mpumalanga: UMP
 
-**Private Colleges (9):**
-IIE MSA, Varsity College, Rosebank College, Vega, Eduvos, AFDA, STADIO, MANCOSA, Boston
+**Private Colleges (10):**
+IIE MSA, Varsity College, Rosebank College, Vega, Eduvos, AFDA, STADIO, MANCOSA, Boston City Campus, Boston Media House
 
 ### Email Domain Verification
 
