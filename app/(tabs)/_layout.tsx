@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, View, ColorValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { shadows } from '@/constants/theme';
 
 type TabIconName = 'home' | 'search' | 'add-circle' | 'chatbubbles' | 'person';
 
@@ -20,6 +22,8 @@ function TabBarIcon({ focused, color, name }: TabBarIconProps) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <Tabs
@@ -93,27 +97,28 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: colors.background.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.light,
-    paddingTop: 8,
-    ...shadows.sm,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  postIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary.DEFAULT,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -16,
-    ...shadows.md,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    tabBar: {
+      backgroundColor: colors.background.white,
+      borderTopWidth: 1,
+      borderTopColor: colors.border.light,
+      paddingTop: 8,
+      ...shadows.sm,
+    },
+    tabLabel: {
+      fontSize: 11,
+      fontWeight: '500',
+      marginTop: 2,
+    },
+    postIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primary.DEFAULT,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: -16,
+      ...shadows.md,
+    },
+  });

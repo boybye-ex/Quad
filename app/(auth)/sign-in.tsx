@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Button, Input } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
-import { colors, fontSize, fontWeight, spacing } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { fontSize, fontWeight, spacing } from '@/constants/theme';
 
 export default function SignInScreen() {
   const router = useRouter();
   const { login, isLoading } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -113,12 +116,13 @@ export default function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.white,
-  },
-  keyboardView: {
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.white,
+    },
+    keyboardView: {
     flex: 1,
   },
   scrollContent: {

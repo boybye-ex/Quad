@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,13 +20,16 @@ import { LiveBadge } from '@/components/ui/Badge';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { CategoryChips } from '@/components/categories/CategoryChips';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchFreshListings, fetchCategories, toggleFavourite, getCategoryCounts } from '@/lib/listings';
-import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing, Category } from '@/types';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { selectedCampus, isAuthenticated, user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -250,9 +253,9 @@ export default function HomeScreen() {
               icon={<Ionicons name="arrow-forward" size={16} color={colors.text.white} />}
             />
             <View style={styles.features}>
-              <FeatureItem icon="checkmark-circle" text="Student-verified" />
-              <FeatureItem icon="call-outline" text="No phone numbers" />
-              <FeatureItem icon="school" text="Campus only" />
+              <FeatureItem icon="checkmark-circle" text="Student-verified" colors={colors} styles={styles} />
+              <FeatureItem icon="call-outline" text="No phone numbers" colors={colors} styles={styles} />
+              <FeatureItem icon="school" text="Campus only" colors={colors} styles={styles} />
             </View>
           </View>
           <Image
@@ -269,7 +272,7 @@ export default function HomeScreen() {
   );
 }
 
-function FeatureItem({ icon, text }: { icon: string; text: string }) {
+function FeatureItem({ icon, text, colors, styles }: { icon: string; text: string; colors: ReturnType<typeof useThemeColors>; styles: ReturnType<typeof createStyles> }) {
   return (
     <View style={styles.featureItem}>
       <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={16} color={colors.secondary.DEFAULT} />
@@ -278,267 +281,268 @@ function FeatureItem({ icon, text }: { icon: string; text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.DEFAULT,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  logo: {
-    fontSize: 24,
-    fontWeight: fontWeight.bold,
-    color: colors.text.dark,
-  },
-  campusSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.white,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    gap: spacing.xs,
-    ...shadows.sm,
-  },
-  campusText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.dark,
-  },
-  signInButton: {
-    backgroundColor: colors.primary.DEFAULT,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-  },
-  signInText: {
-    color: colors.text.white,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  heroSection: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  heroTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: colors.text.dark,
-    lineHeight: 32,
-  },
-  heroTitleGreen: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: colors.primary.DEFAULT,
-    fontStyle: 'italic',
-    lineHeight: 32,
-  },
-  heroDescription: {
-    fontSize: fontSize.base,
-    color: colors.text.gray,
-    marginTop: spacing.sm,
-    lineHeight: 22,
-  },
-  searchContainer: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  postButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.white,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border.light,
-  },
-  postButtonText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    color: colors.text.dark,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.text.dark,
-  },
-  statLabel: {
-    fontSize: fontSize.xs,
-    color: colors.text.gray,
-    marginTop: 2,
-  },
-  promoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.white,
-    marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    borderRadius: borderRadius.xl,
-    marginBottom: spacing.xl,
-    ...shadows.sm,
-  },
-  promoIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.secondary.light + '30',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  promoContent: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  promoTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.dark,
-  },
-  promoBadge: {
-    backgroundColor: colors.secondary.DEFAULT,
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-    marginVertical: spacing.xs,
-  },
-  promoBadgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: colors.text.white,
-  },
-  promoDescription: {
-    fontSize: fontSize.sm,
-    color: colors.text.gray,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.text.dark,
-  },
-  viewAll: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.primary.DEFAULT,
-  },
-  activeHubs: {
-    fontSize: fontSize.sm,
-    color: colors.text.gray,
-  },
-  listingsContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing['3xl'],
-    paddingHorizontal: spacing.lg,
-  },
-  emptyText: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.dark,
-    marginTop: spacing.md,
-  },
-  emptySubtext: {
-    fontSize: fontSize.base,
-    color: colors.text.gray,
-    marginTop: spacing.xs,
-  },
-  builtBySection: {
-    backgroundColor: colors.background.cream,
-    marginHorizontal: spacing.lg,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    marginTop: spacing.lg,
-  },
-  builtByContent: {
-    padding: spacing.xl,
-  },
-  builtByTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: colors.text.dark,
-    lineHeight: 32,
-  },
-  builtByTitleGreen: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: colors.primary.DEFAULT,
-    lineHeight: 32,
-    marginBottom: spacing.md,
-  },
-  builtByDescription: {
-    fontSize: fontSize.base,
-    color: colors.text.gray,
-    lineHeight: 22,
-    marginBottom: spacing.lg,
-  },
-  builtByImage: {
-    width: '100%',
-    height: 200,
-  },
-  features: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  featureText: {
-    fontSize: fontSize.sm,
-    color: colors.text.gray,
-  },
-  footerSpace: {
-    height: spacing['3xl'],
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.DEFAULT,
+    },
+    loadingContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    logoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    logo: {
+      fontSize: 24,
+      fontWeight: fontWeight.bold,
+      color: colors.text.dark,
+    },
+    campusSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.white,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      gap: spacing.xs,
+      ...shadows.sm,
+    },
+    campusText: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      color: colors.text.dark,
+    },
+    signInButton: {
+      backgroundColor: colors.primary.DEFAULT,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+    },
+    signInText: {
+      color: colors.text.white,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.semibold,
+    },
+    heroSection: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.lg,
+    },
+    heroTitle: {
+      fontSize: fontSize['2xl'],
+      fontWeight: fontWeight.bold,
+      color: colors.text.dark,
+      lineHeight: 32,
+    },
+    heroTitleGreen: {
+      fontSize: fontSize['2xl'],
+      fontWeight: fontWeight.bold,
+      color: colors.primary.DEFAULT,
+      fontStyle: 'italic',
+      lineHeight: 32,
+    },
+    heroDescription: {
+      fontSize: fontSize.base,
+      color: colors.text.gray,
+      marginTop: spacing.sm,
+      lineHeight: 22,
+    },
+    searchContainer: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.lg,
+      gap: spacing.md,
+      marginBottom: spacing.xl,
+    },
+    postButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.white,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.full,
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border.light,
+    },
+    postButtonText: {
+      fontSize: fontSize.base,
+      fontWeight: fontWeight.medium,
+      color: colors.text.dark,
+    },
+    statsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    statItem: {
+      alignItems: 'center',
+    },
+    statValue: {
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.bold,
+      color: colors.text.dark,
+    },
+    statLabel: {
+      fontSize: fontSize.xs,
+      color: colors.text.gray,
+      marginTop: 2,
+    },
+    promoCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.white,
+      marginHorizontal: spacing.lg,
+      padding: spacing.md,
+      borderRadius: borderRadius.xl,
+      marginBottom: spacing.xl,
+      ...shadows.sm,
+    },
+    promoIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.secondary.light + '30',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    promoContent: {
+      flex: 1,
+      marginLeft: spacing.md,
+    },
+    promoTitle: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+      color: colors.text.dark,
+    },
+    promoBadge: {
+      backgroundColor: colors.secondary.DEFAULT,
+      alignSelf: 'flex-start',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: borderRadius.sm,
+      marginVertical: spacing.xs,
+    },
+    promoBadgeText: {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.medium,
+      color: colors.text.white,
+    },
+    promoDescription: {
+      fontSize: fontSize.sm,
+      color: colors.text.gray,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    sectionTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    sectionTitle: {
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.bold,
+      color: colors.text.dark,
+    },
+    viewAll: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      color: colors.primary.DEFAULT,
+    },
+    activeHubs: {
+      fontSize: fontSize.sm,
+      color: colors.text.gray,
+    },
+    listingsContainer: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing['3xl'],
+      paddingHorizontal: spacing.lg,
+    },
+    emptyText: {
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.semibold,
+      color: colors.text.dark,
+      marginTop: spacing.md,
+    },
+    emptySubtext: {
+      fontSize: fontSize.base,
+      color: colors.text.gray,
+      marginTop: spacing.xs,
+    },
+    builtBySection: {
+      backgroundColor: colors.background.cream,
+      marginHorizontal: spacing.lg,
+      borderRadius: borderRadius.xl,
+      overflow: 'hidden',
+      marginTop: spacing.lg,
+    },
+    builtByContent: {
+      padding: spacing.xl,
+    },
+    builtByTitle: {
+      fontSize: fontSize['2xl'],
+      fontWeight: fontWeight.bold,
+      color: colors.text.dark,
+      lineHeight: 32,
+    },
+    builtByTitleGreen: {
+      fontSize: fontSize['2xl'],
+      fontWeight: fontWeight.bold,
+      color: colors.primary.DEFAULT,
+      lineHeight: 32,
+      marginBottom: spacing.md,
+    },
+    builtByDescription: {
+      fontSize: fontSize.base,
+      color: colors.text.gray,
+      lineHeight: 22,
+      marginBottom: spacing.lg,
+    },
+    builtByImage: {
+      width: '100%',
+      height: 200,
+    },
+    features: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.lg,
+      marginTop: spacing.lg,
+    },
+    featureItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    featureText: {
+      fontSize: fontSize.sm,
+      color: colors.text.gray,
+    },
+    footerSpace: {
+      height: spacing['3xl'],
+    },
+  });

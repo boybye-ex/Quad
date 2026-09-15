@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,9 @@ import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { searchListings, fetchCategories, toggleFavourite } from '@/lib/listings';
-import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing, Category, SearchFilters } from '@/types';
 
 type SortOption = 'newest' | 'price-low' | 'price-high' | 'rating';
@@ -35,6 +36,8 @@ export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string }>();
   const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [searchQuery, setSearchQuery] = useState(params.q || '');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -378,241 +381,242 @@ function getCategoryIcon(slug: string): keyof typeof Ionicons.glyphMap {
   return icons[slug] || 'grid-outline';
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.DEFAULT,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.white,
-    borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing.md,
-    height: 48,
-    gap: spacing.sm,
-    ...shadows.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: fontSize.base,
-    color: colors.text.dark,
-  },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.background.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.sm,
-  },
-  filterButtonActive: {
-    backgroundColor: colors.primary.DEFAULT,
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.accent.red,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: colors.text.white,
-  },
-  categoryFilters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  recentSearches: {
-    padding: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.dark,
-    marginBottom: spacing.md,
-  },
-  recentSearchItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
-    gap: spacing.md,
-  },
-  recentSearchText: {
-    fontSize: fontSize.base,
-    color: colors.text.dark,
-  },
-  suggestionsSection: {
-    marginTop: spacing.xl,
-  },
-  popularCategories: {
-    gap: spacing.sm,
-  },
-  popularCategory: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.white,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    ...shadows.sm,
-  },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.secondary.light + '30',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  popularCategoryText: {
-    flex: 1,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    color: colors.text.dark,
-    marginLeft: spacing.md,
-  },
-  popularCategoryCount: {
-    fontSize: fontSize.sm,
-    color: colors.text.gray,
-  },
-  resultsHeader: {
-    marginBottom: spacing.md,
-  },
-  resultsInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  resultsCount: {
-    fontSize: fontSize.sm,
-    color: colors.text.gray,
-  },
-  clearFilters: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.primary.DEFAULT,
-  },
-  listContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing['3xl'],
-  },
-  listingItem: {
-    marginBottom: spacing.md,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing['4xl'],
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
-  emptyTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.dark,
-  },
-  emptyText: {
-    fontSize: fontSize.base,
-    color: colors.text.gray,
-    textAlign: 'center',
-  },
-  filtersModal: {
-    flex: 1,
-    backgroundColor: colors.background.white,
-  },
-  filtersHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
-  },
-  filtersTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.text.dark,
-  },
-  filtersContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  filterSection: {
-    marginBottom: spacing.xl,
-  },
-  filterSectionTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.dark,
-    marginBottom: spacing.md,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
-  },
-  filterOptionText: {
-    fontSize: fontSize.base,
-    color: colors.text.dark,
-  },
-  priceRangeOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  priceRangeChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.border.DEFAULT,
-    backgroundColor: colors.background.white,
-  },
-  priceRangeChipActive: {
-    backgroundColor: colors.primary.DEFAULT,
-    borderColor: colors.primary.DEFAULT,
-  },
-  priceRangeChipText: {
-    fontSize: fontSize.sm,
-    color: colors.text.dark,
-  },
-  priceRangeChipTextActive: {
-    color: colors.text.white,
-  },
-  filtersFooter: {
-    flexDirection: 'row',
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.light,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.DEFAULT,
+    },
+    loadingContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+    },
+    searchInputContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.white,
+      borderRadius: borderRadius.xl,
+      paddingHorizontal: spacing.md,
+      height: 48,
+      gap: spacing.sm,
+      ...shadows.sm,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: fontSize.base,
+      color: colors.text.dark,
+    },
+    filterButton: {
+      width: 48,
+      height: 48,
+      borderRadius: borderRadius.xl,
+      backgroundColor: colors.background.white,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadows.sm,
+    },
+    filterButtonActive: {
+      backgroundColor: colors.primary.DEFAULT,
+    },
+    filterBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: colors.accent.red,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    filterBadgeText: {
+      fontSize: 10,
+      fontWeight: fontWeight.bold,
+      color: colors.text.white,
+    },
+    categoryFilters: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    recentSearches: {
+      padding: spacing.lg,
+    },
+    sectionTitle: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+      color: colors.text.dark,
+      marginBottom: spacing.md,
+    },
+    recentSearchItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+      gap: spacing.md,
+    },
+    recentSearchText: {
+      fontSize: fontSize.base,
+      color: colors.text.dark,
+    },
+    suggestionsSection: {
+      marginTop: spacing.xl,
+    },
+    popularCategories: {
+      gap: spacing.sm,
+    },
+    popularCategory: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.white,
+      padding: spacing.md,
+      borderRadius: borderRadius.lg,
+      ...shadows.sm,
+    },
+    categoryIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.secondary.light + '30',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    popularCategoryText: {
+      flex: 1,
+      fontSize: fontSize.base,
+      fontWeight: fontWeight.medium,
+      color: colors.text.dark,
+      marginLeft: spacing.md,
+    },
+    popularCategoryCount: {
+      fontSize: fontSize.sm,
+      color: colors.text.gray,
+    },
+    resultsHeader: {
+      marginBottom: spacing.md,
+    },
+    resultsInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    resultsCount: {
+      fontSize: fontSize.sm,
+      color: colors.text.gray,
+    },
+    clearFilters: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      color: colors.primary.DEFAULT,
+    },
+    listContent: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing['3xl'],
+    },
+    listingItem: {
+      marginBottom: spacing.md,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing['4xl'],
+      paddingHorizontal: spacing.xl,
+      gap: spacing.md,
+    },
+    emptyTitle: {
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.semibold,
+      color: colors.text.dark,
+    },
+    emptyText: {
+      fontSize: fontSize.base,
+      color: colors.text.gray,
+      textAlign: 'center',
+    },
+    filtersModal: {
+      flex: 1,
+      backgroundColor: colors.background.white,
+    },
+    filtersHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+    },
+    filtersTitle: {
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.bold,
+      color: colors.text.dark,
+    },
+    filtersContent: {
+      flex: 1,
+      padding: spacing.lg,
+    },
+    filterSection: {
+      marginBottom: spacing.xl,
+    },
+    filterSectionTitle: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+      color: colors.text.dark,
+      marginBottom: spacing.md,
+    },
+    filterOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+    },
+    filterOptionText: {
+      fontSize: fontSize.base,
+      color: colors.text.dark,
+    },
+    priceRangeOptions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    priceRangeChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: colors.border.DEFAULT,
+      backgroundColor: colors.background.white,
+    },
+    priceRangeChipActive: {
+      backgroundColor: colors.primary.DEFAULT,
+      borderColor: colors.primary.DEFAULT,
+    },
+    priceRangeChipText: {
+      fontSize: fontSize.sm,
+      color: colors.text.dark,
+    },
+    priceRangeChipTextActive: {
+      color: colors.text.white,
+    },
+    filtersFooter: {
+      flexDirection: 'row',
+      padding: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border.light,
+    },
+  });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,9 @@ import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { getAdminReports, resolveReport, AdminReport } from '@/lib/admin';
-import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 
 type FilterStatus = 'all' | 'pending' | 'resolved' | 'dismissed';
 
@@ -34,6 +35,8 @@ const REASON_LABELS: Record<string, string> = {
 export default function AdminReportsScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -303,12 +306,13 @@ export default function AdminReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.DEFAULT,
-  },
-  loadingContainer: {
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.DEFAULT,
+    },
+    loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',

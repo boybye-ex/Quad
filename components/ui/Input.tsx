@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -7,7 +7,8 @@ import {
   TextInputProps,
   ViewStyle,
 } from 'react-native';
-import { colors, borderRadius, fontSize, fontWeight, spacing } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { borderRadius, fontSize, fontWeight, spacing } from '@/constants/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -32,6 +33,8 @@ export const Input = forwardRef<TextInput, InputProps>(
     },
     ref
   ) => {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const hasError = !!error;
 
     return (
@@ -67,55 +70,56 @@ export const Input = forwardRef<TextInput, InputProps>(
 
 Input.displayName = 'Input';
 
-const styles = StyleSheet.create({
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.dark,
-    marginBottom: spacing.sm,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.white,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.DEFAULT,
-    minHeight: 48,
-  },
-  inputContainerError: {
-    borderColor: colors.accent.red,
-  },
-  inputContainerDisabled: {
-    backgroundColor: colors.background.DEFAULT,
-  },
-  input: {
-    flex: 1,
-    fontSize: fontSize.base,
-    color: colors.text.dark,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  inputWithLeftIcon: {
-    paddingLeft: spacing.sm,
-  },
-  inputWithRightIcon: {
-    paddingRight: spacing.sm,
-  },
-  leftIcon: {
-    paddingLeft: spacing.lg,
-  },
-  rightIcon: {
-    paddingRight: spacing.lg,
-  },
-  error: {
-    fontSize: fontSize.xs,
-    color: colors.accent.red,
-    marginTop: spacing.xs,
-  },
-  hint: {
-    fontSize: fontSize.xs,
-    color: colors.text.gray,
-    marginTop: spacing.xs,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    label: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      color: colors.text.dark,
+      marginBottom: spacing.sm,
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.white,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.border.DEFAULT,
+      minHeight: 48,
+    },
+    inputContainerError: {
+      borderColor: colors.accent.red,
+    },
+    inputContainerDisabled: {
+      backgroundColor: colors.background.DEFAULT,
+    },
+    input: {
+      flex: 1,
+      fontSize: fontSize.base,
+      color: colors.text.dark,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    inputWithLeftIcon: {
+      paddingLeft: spacing.sm,
+    },
+    inputWithRightIcon: {
+      paddingRight: spacing.sm,
+    },
+    leftIcon: {
+      paddingLeft: spacing.lg,
+    },
+    rightIcon: {
+      paddingRight: spacing.lg,
+    },
+    error: {
+      fontSize: fontSize.xs,
+      color: colors.accent.red,
+      marginTop: spacing.xs,
+    },
+    hint: {
+      fontSize: fontSize.xs,
+      color: colors.text.gray,
+      marginTop: spacing.xs,
+    },
+  });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -6,7 +6,8 @@ import {
   View,
   StyleSheet,
 } from 'react-native';
-import { colors, borderRadius, fontSize, fontWeight, spacing } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { borderRadius, fontSize, fontWeight, spacing } from '@/constants/theme';
 
 interface ButtonProps {
   title: string;
@@ -31,6 +32,8 @@ export function Button({
   iconPosition = 'right',
   fullWidth = false,
 }: ButtonProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isDisabled = disabled || loading;
 
   const buttonStyles = [
@@ -75,83 +78,84 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.full,
-  },
-  primary: {
-    backgroundColor: colors.primary.DEFAULT,
-  },
-  secondary: {
-    backgroundColor: colors.secondary.DEFAULT,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.border.DEFAULT,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  size_sm: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    minHeight: 36,
-  },
-  size_md: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    minHeight: 44,
-  },
-  size_lg: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing['2xl'],
-    minHeight: 52,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  text: {
-    fontWeight: fontWeight.semibold,
-  },
-  text_primary: {
-    color: colors.text.white,
-  },
-  text_secondary: {
-    color: colors.text.white,
-  },
-  text_outline: {
-    color: colors.text.dark,
-  },
-  text_ghost: {
-    color: colors.primary.DEFAULT,
-  },
-  text_sm: {
-    fontSize: fontSize.sm,
-  },
-  text_md: {
-    fontSize: fontSize.base,
-  },
-  text_lg: {
-    fontSize: fontSize.md,
-  },
-  textDisabled: {
-    opacity: 0.7,
-  },
-  iconLeft: {
-    marginRight: spacing.sm,
-  },
-  iconRight: {
-    marginLeft: spacing.sm,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+  StyleSheet.create({
+    base: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+    },
+    primary: {
+      backgroundColor: colors.primary.DEFAULT,
+    },
+    secondary: {
+      backgroundColor: colors.secondary.DEFAULT,
+    },
+    outline: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: colors.border.DEFAULT,
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+    },
+    size_sm: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      minHeight: 36,
+    },
+    size_md: {
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      minHeight: 44,
+    },
+    size_lg: {
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing['2xl'],
+      minHeight: 52,
+    },
+    fullWidth: {
+      width: '100%',
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+    content: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    text: {
+      fontWeight: fontWeight.semibold,
+    },
+    text_primary: {
+      color: colors.text.white,
+    },
+    text_secondary: {
+      color: colors.text.white,
+    },
+    text_outline: {
+      color: colors.text.dark,
+    },
+    text_ghost: {
+      color: colors.primary.DEFAULT,
+    },
+    text_sm: {
+      fontSize: fontSize.sm,
+    },
+    text_md: {
+      fontSize: fontSize.base,
+    },
+    text_lg: {
+      fontSize: fontSize.md,
+    },
+    textDisabled: {
+      opacity: 0.7,
+    },
+    iconLeft: {
+      marginRight: spacing.sm,
+    },
+    iconRight: {
+      marginLeft: spacing.sm,
+    },
+  });
