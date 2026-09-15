@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,10 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { mockListings } from '@/services/mockData';
-import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing, Campus } from '@/types';
 
 type Tab = 'listings' | 'favorites' | 'settings';
@@ -26,11 +28,15 @@ type Tab = 'listings' | 'favorites' | 'settings';
 export default function ProfileScreen() {
   const router = useRouter();
   const { isAuthenticated, user, logout, selectedCampus, setSelectedCampus, campuses } = useAuthStore();
+  const colors = useThemeColors();
+  const { colorScheme, toggleTheme } = useThemeStore();
+  const isDarkMode = colorScheme === 'dark';
 
   const [activeTab, setActiveTab] = useState<Tab>('listings');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [showCampusPicker, setShowCampusPicker] = useState(false);
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const myListings = mockListings.filter((l) => l.seller.id === user?.id).slice(0, 3);
   const favoriteListings = mockListings.filter((l) => l.isFavorite);
@@ -238,10 +244,10 @@ export default function ProfileScreen() {
             <Text style={styles.settingsItemText}>Dark Mode</Text>
           </View>
           <Switch
-            value={darkModeEnabled}
-            onValueChange={setDarkModeEnabled}
+            value={isDarkMode}
+            onValueChange={toggleTheme}
             trackColor={{ false: colors.border.DEFAULT, true: colors.secondary.light }}
-            thumbColor={darkModeEnabled ? colors.primary.DEFAULT : colors.text.light}
+            thumbColor={isDarkMode ? colors.primary.DEFAULT : colors.text.light}
           />
         </View>
       </View>
@@ -360,7 +366,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.DEFAULT,

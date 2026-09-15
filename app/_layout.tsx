@@ -10,7 +10,8 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { useAuthStore } from '@/store/authStore';
-import { colors } from '@/constants/theme';
+import { useThemeStore } from '@/store/themeStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -35,6 +36,9 @@ export default function RootLayout() {
   });
 
   const initializeAuth = useAuthStore((state) => state.initialize);
+  const initializeTheme = useThemeStore((state) => state.initialize);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const colors = useThemeColors();
 
   useEffect(() => {
     if (error) throw error;
@@ -43,9 +47,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       initializeAuth();
+      initializeTheme();
       SplashScreen.hideAsync();
     }
-  }, [loaded, initializeAuth]);
+  }, [loaded, initializeAuth, initializeTheme]);
 
   if (!loaded) {
     return null;
@@ -88,7 +93,7 @@ export default function RootLayout() {
               }}
             />
           </Stack>
-          <StatusBar style="dark" />
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
