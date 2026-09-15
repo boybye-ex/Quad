@@ -77,6 +77,29 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   initialize: async () => {
     try {
+      // Set up auth state change listener first - ensures SIGNED_OUT events
+      // are handled even for users who are already logged in at app start
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const profile = await fetchProfile(session.user.id);
+          if (profile) {
+            const campuses = get().campuses;
+            const userCampus = campuses.find((c) => c.id === profile.campus_id) || null;
+            const user = mapSupabaseProfile(profile, userCampus);
+            set({
+              user,
+              isAuthenticated: true,
+              selectedCampus: userCampus || get().selectedCampus,
+            });
+          }
+        } else if (event === 'SIGNED_OUT') {
+          set({
+            user: null,
+            isAuthenticated: false,
+          });
+        }
+      });
+
       await get().loadCampuses();
 
       const campusData = await SecureStore.getItemAsync(CAMPUS_KEY);
@@ -113,27 +136,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({
         isLoading: false,
         selectedCampus,
-      });
-
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          if (profile) {
-            const campuses = get().campuses;
-            const userCampus = campuses.find((c) => c.id === profile.campus_id) || null;
-            const user = mapSupabaseProfile(profile, userCampus);
-            set({
-              user,
-              isAuthenticated: true,
-              selectedCampus: userCampus || get().selectedCampus,
-            });
-          }
-        } else if (event === 'SIGNED_OUT') {
-          set({
-            user: null,
-            isAuthenticated: false,
-          });
-        }
       });
     } catch (error) {
       console.error('Error initializing auth:', error);
@@ -225,14 +227,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: async () => {
+    // Clear local state first - ensures UI updates even if signOut fails
+    set({
+      user: null,
+      isAuthenticated: false,
+    });
+
     try {
       await supabase.auth.signOut();
-      set({
-        user: null,
-        isAuthenticated: false,
-      });
     } catch (error) {
       console.error('Logout error:', error);
+      // State already cleared above, so user is "logged out" locally
+      // On next app restart, session may be restored if signOut failed
     }
   },
 
