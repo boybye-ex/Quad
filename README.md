@@ -13,7 +13,7 @@ A React Native mobile application for campus marketplace - buy, sell, and share 
 - **Admin Panel** - Full moderation tools for admins (users, listings, reports)
 - **User Profiles** - Manage your listings, favorites, and settings
 - **Campus Communities** - Connect with verified students at your campus
-- **SA University Support** - All 26 public universities and 9 major private colleges
+- **SA Institution Support** - All 26 public universities, 10 private colleges, and 50 TVET colleges (86 total)
 
 ## Tech Stack
 
@@ -134,7 +134,7 @@ npm run web
 
 ### Seeded Campuses
 
-The database includes all 26 South African public universities and 9 major private colleges:
+The database includes all 26 South African public universities, 10 major private colleges, and 50 public TVET colleges (86 total):
 
 **Public Universities (26):**
 - Western Cape: UCT, Stellenbosch, UWC, CPUT
@@ -147,8 +147,21 @@ The database includes all 26 South African public universities and 9 major priva
 - Northern Cape: SPU
 - Mpumalanga: UMP
 
-**Private Colleges (9):**
-IIE MSA, Varsity College, Rosebank College, Vega, Eduvos, AFDA, STADIO, MANCOSA, Boston
+**Private Colleges (10):**
+IIE MSA, Varsity College, Rosebank College, Vega, Eduvos, AFDA, STADIO, MANCOSA, Boston City Campus, Boston Media House
+
+**Public TVET Colleges (50):**
+- Gauteng (8): CJC, EEC, EWC, Sedibeng, SWGC, TNC, TSC, Westcol
+- Western Cape (6): Boland, CCT, False Bay, Northlink, South Cape, West Coast
+- KwaZulu-Natal (9): Coastal, Elangeni, Esayidi, Majuba, Mnambithi, Mthashana, Thekwini, Umfolozi, Umgungundlovu
+- Eastern Cape (8): Buffalo City, Eastcape Midlands, Ikhala, Ingwe, King Hintsa, KSD, Lovedale, PE TVET
+- Limpopo (7): Capricorn, Lephalale, Letaba, Mopani SE, Sekhukhune, Vhembe, Waterberg
+- Free State (4): Flavius Mareka, Goldfields, Maluti, Motheo
+- Mpumalanga (3): Ehlanzeni, Gert Sibande, Nkangala
+- North West (3): Orbit, Taletso, Vuselela
+- Northern Cape (2): NC Rural, NC Urban
+
+*Note: TVET email domains are less standardized than universities. Domains are based on official college websites and DHET registers.*
 
 ### Email Domain Verification
 
@@ -290,13 +303,59 @@ This creates:
 -- This creates sample reports for testing the admin queue
 ```
 
-### Future Enhancements (Not in Step 4)
+### Payments Foundation (Step 5)
+
+The app includes a payments foundation for secure peer-to-peer transactions using Paystack (ZAR).
+
+**Provider Choice: Paystack**
+
+We chose [Paystack](https://paystack.com/) for South African payments because:
+- Native ZAR support (no currency conversion fees)
+- Popular among SA students and fintechs
+- Multiple payment methods: Card, Instant EFT (Ozow), Mobile Money
+- Lower fees for local transactions (2.9% + R2.00)
+- Official React Native SDK available
+
+See [docs/payments.md](./docs/payments.md) for the full design document.
+
+**Current Features (Foundation):**
+- `payments` database table with full schema
+- "Buy Now" button on listings (when payments enabled)
+- Checkout placeholder screen
+- Environment-gated (no charges without valid keys)
+
+**Migration (Step 5):**
+
+```sql
+-- Run in Supabase SQL Editor (after Steps 1-4):
+-- supabase/migrations/00005_payments.sql
+```
+
+**Environment Setup:**
+
+```bash
+# In .env (use test keys for development):
+EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_test_your-key-here
+EXPO_PUBLIC_PAYMENTS_ENABLED=true
+```
+
+Get test keys from [Paystack Dashboard > Settings > API Keys](https://dashboard.paystack.com/#/settings/developers).
+
+**Testing:**
+
+With `EXPO_PUBLIC_PAYMENTS_ENABLED=false` (default), the "Buy Now" button is hidden and users see "Contact Seller" only. When enabled with a valid Paystack test key, the button appears and leads to a checkout placeholder screen.
+
+**Future Phases:**
+- Phase 2: Actual Paystack SDK integration + webhooks
+- Phase 3: Platform fees, refunds
+- Phase 4: Escrow (requires legal review)
+
+### Future Enhancements (Not in Step 5)
 
 - Block user feature
 - Push notifications for new messages
 - Student number verification APIs
 - Campus SSO integration
-- TVET colleges (50+, pending email domain standardization)
 
 ## Project Structure
 

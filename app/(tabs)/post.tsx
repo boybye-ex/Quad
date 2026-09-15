@@ -23,6 +23,7 @@ import { Chip } from '@/components/ui/Chip';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchCategories, uploadListingImage, createListing, CreateListingInput } from '@/lib/listings';
+import { formatPrice } from '@/lib/format';
 import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { PriceType, Category } from '@/types';
 
@@ -412,10 +413,7 @@ export default function PostScreen() {
 
   const renderPreviewStep = () => {
     const category = categories.find((c) => c.slug === selectedCategory);
-    const formattedPrice =
-      priceType === 'free'
-        ? 'Free'
-        : `R${price}${priceType === 'hourly' ? '/hour' : priceType === 'monthly' ? '/month' : ''}`;
+    const formattedPrice = formatPrice(parseFloat(price) || 0, priceType);
 
     return (
       <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>

@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { getAdminListings, updateListingStatus, AdminListing } from '@/lib/admin';
+import { formatOriginalPrice } from '@/lib/format';
 import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 
 type FilterStatus = 'all' | 'active' | 'hidden' | 'deleted';
@@ -115,7 +116,7 @@ export default function AdminListingsScreen() {
           <Text style={styles.listingTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          <Text style={styles.listingPrice}>R{item.price}</Text>
+          <Text style={styles.listingPrice}>{formatOriginalPrice(item.price)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
           <Text style={[styles.statusBadgeText, { color: getStatusColor(item.status) }]}>
