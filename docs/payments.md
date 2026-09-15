@@ -118,38 +118,90 @@ CREATE TABLE payments (
 
 ## Environment Variables
 
+### Client-side (Expo app)
+
 ```bash
 # Paystack Configuration
 # Get keys from: https://dashboard.paystack.com/#/settings/developers
 EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_test_xxx  # Public key (safe for client)
-PAYSTACK_SECRET_KEY=sk_test_xxx              # Secret key (server-side only!)
 
 # Feature flags
 EXPO_PUBLIC_PAYMENTS_ENABLED=false           # Set to true to enable payments UI
 ```
 
+### Server-side (Supabase Edge Functions)
+
+The `PAYSTACK_SECRET_KEY` must be set as a Supabase Edge Function secret:
+
+```bash
+# Set the secret key for Edge Functions
+supabase secrets set PAYSTACK_SECRET_KEY=sk_test_xxx
+```
+
 **Security Notes:**
 - NEVER commit secret keys to git
 - Public key can be exposed in client (prefixed with `pk_`)
-- Secret key must only be used server-side (webhooks, verification)
+- Secret key must only be used server-side (Edge Functions)
 - Use test keys (`pk_test_`, `sk_test_`) for development
+
+## Supabase Edge Functions
+
+### paystack-initialize
+
+Initializes a Paystack transaction and returns the authorization URL.
+
+**Deployment:**
+```bash
+supabase functions deploy paystack-initialize
+```
+
+**Usage:**
+```
+POST /functions/v1/paystack-initialize
+Headers: Authorization: Bearer <supabase-anon-key>
+Body: {
+  "paymentId": "uuid-of-payment-record",
+  "email": "buyer@example.com",
+  "amountCents": 15000
+}
+```
+
+### paystack-verify
+
+Verifies a Paystack transaction and updates the payment record. Also handles webhooks.
+
+**Deployment:**
+```bash
+supabase functions deploy paystack-verify
+```
+
+**Usage (Client verification):**
+```
+POST /functions/v1/paystack-verify
+Headers: Authorization: Bearer <supabase-anon-key>
+Body: { "reference": "QUAD_xxx" }
+```
+
+**Usage (Webhook):**
+Set the webhook URL in Paystack Dashboard to:
+`https://<project-ref>.supabase.co/functions/v1/paystack-verify`
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Current PR)
+### Phase 1: Foundation (Completed - PR #8)
 - [x] Design document
 - [x] Database migration (`payments` table)
 - [x] Environment variable placeholders
 - [x] UI stub: "Pay with Paystack" button (gated)
 - [x] Checkout placeholder screen
-- [ ] No actual charges (requires backend + webhooks)
 
-### Phase 2: Basic Payments (Future)
-- [ ] Paystack SDK integration
-- [ ] Server-side webhook handler
-- [ ] Payment verification flow
-- [ ] Success/failure screens
-- [ ] Payment history in profile
+### Phase 2: Basic Payments (Current)
+- [x] Paystack SDK integration (`react-native-paystack-webview`)
+- [x] Server-side Edge Functions (`paystack-initialize`, `paystack-verify`)
+- [x] Webhook handler (signature verification in `paystack-verify`)
+- [x] Payment verification flow (server-side verification after success)
+- [x] Success/failure/cancelled screens with clear UI
+- [ ] Payment history in profile (future enhancement)
 
 ### Phase 3: Enhanced Features (Future)
 - [ ] Platform fees

@@ -183,3 +183,124 @@ export async function getPaymentById(
     return { payment: null, error: 'Failed to fetch payment' };
   }
 }
+
+export interface InitializePaymentParams {
+  paymentId: string;
+  email: string;
+  amountCents: number;
+}
+
+export interface InitializePaymentResult {
+  success: boolean;
+  authorizationUrl?: string;
+  accessCode?: string;
+  reference?: string;
+  error?: string;
+}
+
+export async function initializePaystackPayment(
+  params: InitializePaymentParams
+): Promise<InitializePaymentResult> {
+  try {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return { success: false, error: 'Supabase configuration missing' };
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/paystack-initialize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        paymentId: params.paymentId,
+        email: params.email,
+        amountCents: params.amountCents,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Initialize payment error:', data);
+      return { success: false, error: data.error || 'Failed to initialize payment' };
+    }
+
+    return {
+      success: true,
+      authorizationUrl: data.authorizationUrl,
+      accessCode: data.accessCode,
+      reference: data.reference,
+    };
+  } catch (err) {
+    console.error('Error initializing payment:', err);
+    return { success: false, error: 'Failed to initialize payment' };
+  }
+}
+
+export interface VerifyPaymentResult {
+  success: boolean;
+  status?: PaymentStatus;
+  paymentId?: string;
+  amount?: number;
+  error?: string;
+}
+
+export async function verifyPaystackPayment(
+  reference: string
+): Promise<VerifyPaymentResult> {
+  try {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return { success: false, error: 'Supabase configuration missing' };
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/paystack-verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({ reference }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Verify payment error:', data);
+      return { success: false, error: data.error || 'Failed to verify payment' };
+    }
+
+    return {
+      success: true,
+      status: data.status as PaymentStatus,
+      paymentId: data.paymentId,
+      amount: data.amount,
+    };
+  } catch (err) {
+    console.error('Error verifying payment:', err);
+    return { success: false, error: 'Failed to verify payment' };
+  }
+}
+
+export async function updatePaymentFailed(
+  paymentId: string,
+  reason: string
+): Promise<void> {
+  try {
+    await supabase
+      .from('payments')
+      .update({
+        status: 'failed',
+        metadata: { failure_reason: reason, failed_at: new Date().toISOString() },
+      })
+      .eq('id', paymentId);
+  } catch (err) {
+    console.error('Error updating payment to failed:', err);
+  }
+}
