@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,10 +20,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Chip } from '@/components/ui/Chip';
-import { mockCategories } from '@/services/mockData';
 import { useAuthStore } from '@/store/authStore';
+import { fetchCategories, uploadListingImage, createListing, CreateListingInput } from '@/lib/listings';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
-import { PriceType } from '@/types';
+import { PriceType, Category } from '@/types';
 
 type Step = 'category' | 'details' | 'preview';
 
@@ -42,10 +43,12 @@ const conditions = [
 
 export default function PostScreen() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, selectedCampus } = useAuthStore();
 
   const [step, setStep] = useState<Step>('category');
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -54,17 +57,25 @@ export default function PostScreen() {
   const [condition, setCondition] = useState<string>('good');
   const [tags, setTags] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  useEffect(() => {
+    fetchCategories().then(setCategories);
+  }, []);
 
   const handlePickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library to upload images.');
+      Alert.alert(
+        'Permission Required',
+        'Please allow access to your photo library to upload images.'
+      );
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       selectionLimit: 5 - images.length,
       quality: 0.8,
@@ -99,8 +110,13 @@ export default function PostScreen() {
     setImages(images.filter((_, i) => i !== index));
   };
 
+  const handleCategorySelect = (categorySlug: string, categoryId: string) => {
+    setSelectedCategory(categorySlug);
+    setSelectedCategoryId(categoryId);
+  };
+
   const handleSubmit = async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       Alert.alert('Sign In Required', 'Please sign in to post a listing.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign In', onPress: () => router.push('/(auth)/sign-in') },
@@ -108,17 +124,86 @@ export default function PostScreen() {
       return;
     }
 
-    setIsSubmitting(true);
-    
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    setIsSubmitting(false);
-    Alert.alert('Success!', 'Your listing has been posted.', [
-      { text: 'View Listing', onPress: () => router.push('/(tabs)') },
-    ]);
+    if (!selectedCampus) {
+      Alert.alert('Campus Required', 'Please select a campus in your profile settings.');
+      return;
+    }
 
+    if (!selectedCategoryId) {
+      Alert.alert('Category Required', 'Please select a category for your listing.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setUploadProgress(0);
+
+    try {
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < images.length; i++) {
+        setUploadProgress(Math.round(((i + 1) / images.length) * 50));
+        const result = await uploadListingImage(user.id, images[i]);
+        if (result.url) {
+          uploadedUrls.push(result.url);
+        } else {
+          console.error('Failed to upload image:', result.error);
+        }
+      }
+
+      setUploadProgress(75);
+
+      const listingInput: CreateListingInput = {
+        title,
+        description,
+        price: priceType === 'free' ? 0 : parseFloat(price) || 0,
+        priceType,
+        categoryId: selectedCategoryId,
+        images: uploadedUrls.length > 0 ? uploadedUrls : images,
+        campusId: selectedCampus.id,
+        condition: ['textbooks', 'electronics', 'furniture'].includes(selectedCategory || '')
+          ? (condition as 'new' | 'like-new' | 'good' | 'fair')
+          : undefined,
+        tags: tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
+      };
+
+      const result = await createListing(listingInput, user.id);
+
+      setUploadProgress(100);
+
+      if (result.error) {
+        Alert.alert('Error', result.error);
+        setIsSubmitting(false);
+        return;
+      }
+
+      Alert.alert('Success!', 'Your listing has been posted.', [
+        {
+          text: 'View Listing',
+          onPress: () => {
+            resetForm();
+            if (result.listing) {
+              router.push(`/listing/${result.listing.id}`);
+            } else {
+              router.push('/(tabs)');
+            }
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error('Error creating listing:', error);
+      Alert.alert('Error', 'Failed to create listing. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const resetForm = () => {
     setStep('category');
     setSelectedCategory(null);
+    setSelectedCategoryId(null);
     setImages([]);
     setTitle('');
     setDescription('');
@@ -159,14 +244,14 @@ export default function PostScreen() {
       <Text style={styles.stepSubtitle}>Select a category for your listing</Text>
 
       <View style={styles.categoriesGrid}>
-        {mockCategories.slice(1).map((category) => (
+        {categories.map((category) => (
           <TouchableOpacity
             key={category.id}
             style={[
               styles.categoryCard,
               selectedCategory === category.slug && styles.categoryCardSelected,
             ]}
-            onPress={() => setSelectedCategory(category.slug)}
+            onPress={() => handleCategorySelect(category.slug, category.id)}
           >
             <View
               style={[
@@ -178,9 +263,7 @@ export default function PostScreen() {
                 name={getCategoryIcon(category.slug)}
                 size={28}
                 color={
-                  selectedCategory === category.slug
-                    ? colors.text.white
-                    : colors.primary.DEFAULT
+                  selectedCategory === category.slug ? colors.text.white : colors.primary.DEFAULT
                 }
               />
             </View>
@@ -281,41 +364,40 @@ export default function PostScreen() {
         {/* Price Input */}
         {priceType !== 'free' && (
           <Input
-            label="Price"
+            label="Price (ZAR)"
             value={price}
             onChangeText={setPrice}
             placeholder="0"
             keyboardType="decimal-pad"
-            leftIcon={<Text style={styles.currencySymbol}>$</Text>}
+            leftIcon={<Text style={styles.currencySymbol}>R</Text>}
             containerStyle={styles.inputContainer}
           />
         )}
 
         {/* Condition (for items) */}
-        {selectedCategory &&
-          ['textbooks', 'electronics', 'furniture'].includes(selectedCategory) && (
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Condition</Text>
-              <View style={styles.conditionRow}>
-                {conditions.map((c) => (
-                  <Chip
-                    key={c.value}
-                    label={c.label}
-                    selected={condition === c.value}
-                    onPress={() => setCondition(c.value)}
-                    size="sm"
-                  />
-                ))}
-              </View>
+        {selectedCategory && ['textbooks', 'electronics', 'furniture'].includes(selectedCategory) && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Condition</Text>
+            <View style={styles.conditionRow}>
+              {conditions.map((c) => (
+                <Chip
+                  key={c.value}
+                  label={c.label}
+                  selected={condition === c.value}
+                  onPress={() => setCondition(c.value)}
+                  size="sm"
+                />
+              ))}
             </View>
-          )}
+          </View>
+        )}
 
         {/* Tags */}
         <Input
           label="Tags (optional)"
           value={tags}
           onChangeText={setTags}
-          placeholder="e.g., CHEM 33, Fall Quarter"
+          placeholder="e.g., CHEM 33, Fall Semester"
           hint="Separate with commas"
           containerStyle={styles.inputContainer}
         />
@@ -326,11 +408,11 @@ export default function PostScreen() {
   );
 
   const renderPreviewStep = () => {
-    const category = mockCategories.find((c) => c.slug === selectedCategory);
+    const category = categories.find((c) => c.slug === selectedCategory);
     const formattedPrice =
       priceType === 'free'
         ? 'Free'
-        : `$${price}${priceType === 'hourly' ? '/hour' : priceType === 'monthly' ? '/month' : ''}`;
+        : `R${price}${priceType === 'hourly' ? '/hour' : priceType === 'monthly' ? '/month' : ''}`;
 
     return (
       <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
@@ -356,9 +438,7 @@ export default function PostScreen() {
             </View>
 
             <Text style={styles.previewTitle}>{title || 'Your title here'}</Text>
-            <Text style={styles.previewDescription}>
-              {description || 'Your description here'}
-            </Text>
+            <Text style={styles.previewDescription}>{description || 'Your description here'}</Text>
 
             {tags && (
               <View style={styles.previewTags}>
@@ -372,13 +452,13 @@ export default function PostScreen() {
 
             <View style={styles.previewSeller}>
               <View style={styles.previewSellerAvatar}>
-                <Text style={styles.previewSellerInitials}>
-                  {user?.name?.charAt(0) || 'U'}
-                </Text>
+                <Text style={styles.previewSellerInitials}>{user?.name?.charAt(0) || 'U'}</Text>
               </View>
               <View>
                 <Text style={styles.previewSellerName}>{user?.name || 'You'}</Text>
-                <Text style={styles.previewSellerRole}>{user?.role || 'Student'}</Text>
+                <Text style={styles.previewSellerRole}>
+                  {user?.role || 'Student'} • {selectedCampus?.shortName}
+                </Text>
               </View>
             </View>
           </View>
@@ -387,7 +467,7 @@ export default function PostScreen() {
         <View style={styles.previewNote}>
           <Ionicons name="information-circle-outline" size={20} color={colors.text.gray} />
           <Text style={styles.previewNoteText}>
-            Your listing will be visible to all students at your campus.
+            Your listing will be visible to all students at SA campuses.
           </Text>
         </View>
 
@@ -409,11 +489,7 @@ export default function PostScreen() {
           </TouchableOpacity>
         )}
         <Text style={styles.headerTitle}>
-          {step === 'category'
-            ? 'New Listing'
-            : step === 'details'
-            ? 'Details'
-            : 'Preview'}
+          {step === 'category' ? 'New Listing' : step === 'details' ? 'Details' : 'Preview'}
         </Text>
         <View style={styles.headerRight} />
       </View>
@@ -425,12 +501,7 @@ export default function PostScreen() {
             style={[
               styles.progressFill,
               {
-                width:
-                  step === 'category'
-                    ? '33%'
-                    : step === 'details'
-                    ? '66%'
-                    : '100%',
+                width: step === 'category' ? '33%' : step === 'details' ? '66%' : '100%',
               },
             ]}
           />
@@ -474,13 +545,27 @@ export default function PostScreen() {
           />
         )}
         {step === 'preview' && (
-          <Button
-            title="Post Listing"
-            onPress={handleSubmit}
-            loading={isSubmitting}
-            fullWidth
-            icon={<Ionicons name="checkmark" size={18} color={colors.text.white} />}
-          />
+          <View>
+            {isSubmitting && uploadProgress > 0 && (
+              <View style={styles.uploadProgressContainer}>
+                <View style={[styles.uploadProgressBar, { width: `${uploadProgress}%` }]} />
+                <Text style={styles.uploadProgressText}>
+                  {uploadProgress < 50 ? 'Uploading images...' : 'Creating listing...'}
+                </Text>
+              </View>
+            )}
+            <Button
+              title={isSubmitting ? 'Posting...' : 'Post Listing'}
+              onPress={handleSubmit}
+              loading={isSubmitting}
+              fullWidth
+              icon={
+                !isSubmitting ? (
+                  <Ionicons name="checkmark" size={18} color={colors.text.white} />
+                ) : undefined
+              }
+            />
+          </View>
         )}
       </View>
     </SafeAreaView>
@@ -695,6 +780,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.white,
     borderTopWidth: 1,
     borderTopColor: colors.border.light,
+  },
+  uploadProgressContainer: {
+    height: 24,
+    backgroundColor: colors.border.light,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  uploadProgressBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colors.secondary.DEFAULT,
+  },
+  uploadProgressText: {
+    textAlign: 'center',
+    fontSize: fontSize.sm,
+    color: colors.text.dark,
+    fontWeight: fontWeight.medium,
   },
   authPrompt: {
     flex: 1,

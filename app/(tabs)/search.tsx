@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   Keyboard,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,23 +17,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { ListingCard } from '@/components/listings/ListingCard';
-import { mockCategories, searchListings, mockListings } from '@/services/mockData';
+import { useAuthStore } from '@/store/authStore';
+import { searchListings, fetchCategories, toggleFavourite } from '@/lib/listings';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
-import { Listing } from '@/types';
+import { Listing, Category, SearchFilters } from '@/types';
 
 type SortOption = 'newest' | 'price-low' | 'price-high' | 'rating';
 
 const recentSearches = [
   'Organic Chemistry textbook',
   'Studio apartment',
-  'CS106B tutor',
+  'Python tutor',
   'Airport ride',
 ];
 
 export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string }>();
-  const inputRef = useRef<TextInput>(null);
+  const { user } = useAuthStore();
 
   const [searchQuery, setSearchQuery] = useState(params.q || '');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -40,51 +42,47 @@ export default function SearchScreen() {
   const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [hasSearched, setHasSearched] = useState(!!params.q);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<Listing[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  const searchResults = useMemo(() => {
-    if (!hasSearched && !searchQuery.trim()) return [];
+  useEffect(() => {
+    fetchCategories().then(setCategories);
+  }, []);
 
-    let results = searchQuery.trim()
-      ? searchListings(searchQuery)
-      : [...mockListings];
-
-    if (selectedCategory && selectedCategory !== 'all') {
-      results = results.filter((l) => l.category.slug === selectedCategory);
+  useEffect(() => {
+    if (params.q) {
+      performSearch();
     }
+  }, [params.q]);
 
-    if (priceRange) {
-      results = results.filter(
-        (l) => l.price >= priceRange.min && l.price <= priceRange.max
-      );
-    }
+  const performSearch = useCallback(async () => {
+    setIsLoading(true);
+    setHasSearched(true);
 
-    switch (sortBy) {
-      case 'newest':
-        results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        break;
-      case 'price-low':
-        results.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        results.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        results.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
-    }
+    const filters: SearchFilters = {
+      query: searchQuery,
+      category: selectedCategory || undefined,
+      minPrice: priceRange?.min,
+      maxPrice: priceRange?.max === Infinity ? undefined : priceRange?.max,
+      sortBy,
+    };
 
-    return results;
-  }, [searchQuery, selectedCategory, sortBy, priceRange, hasSearched]);
+    const results = await searchListings(filters, user?.id);
+    setSearchResults(results);
+    setIsLoading(false);
+  }, [searchQuery, selectedCategory, priceRange, sortBy, user?.id]);
 
   const handleSearch = useCallback(() => {
     Keyboard.dismiss();
-    setHasSearched(true);
-  }, []);
+    performSearch();
+  }, [performSearch]);
 
   const handleRecentSearch = useCallback((query: string) => {
     setSearchQuery(query);
     setHasSearched(true);
-  }, []);
+    performSearch();
+  }, [performSearch]);
 
   const handleClearFilters = useCallback(() => {
     setSelectedCategory(null);
@@ -92,24 +90,38 @@ export default function SearchScreen() {
     setSortBy('newest');
   }, []);
 
-  const handleFavorite = (id: string) => {
-    console.log('Toggle favorite:', id);
+  const handleFavorite = async (id: string) => {
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
+
+    const result = await toggleFavourite(id, user.id);
+    if (!result.error) {
+      setSearchResults((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, isFavorite: result.isFavourite } : l))
+      );
+    }
   };
 
-  const activeFiltersCount = useMemo(() => {
+  const handleApplyFilters = useCallback(() => {
+    setShowFilters(false);
+    performSearch();
+  }, [performSearch]);
+
+  const activeFiltersCount = (() => {
     let count = 0;
     if (selectedCategory && selectedCategory !== 'all') count++;
     if (priceRange) count++;
     if (sortBy !== 'newest') count++;
     return count;
-  }, [selectedCategory, priceRange, sortBy]);
+  })();
 
   const renderSearchHeader = () => (
     <View style={styles.searchHeader}>
       <View style={styles.searchInputContainer}>
         <Ionicons name="search" size={20} color={colors.text.gray} />
         <TextInput
-          ref={inputRef}
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -148,15 +160,21 @@ export default function SearchScreen() {
       <Chip
         label="All"
         selected={!selectedCategory || selectedCategory === 'all'}
-        onPress={() => setSelectedCategory('all')}
+        onPress={() => {
+          setSelectedCategory('all');
+          performSearch();
+        }}
         size="sm"
       />
-      {mockCategories.slice(1, 6).map((category) => (
+      {categories.slice(0, 5).map((category) => (
         <Chip
           key={category.id}
           label={category.name}
           selected={selectedCategory === category.slug}
-          onPress={() => setSelectedCategory(category.slug)}
+          onPress={() => {
+            setSelectedCategory(category.slug);
+            performSearch();
+          }}
           size="sm"
         />
       ))}
@@ -180,7 +198,7 @@ export default function SearchScreen() {
       <View style={styles.suggestionsSection}>
         <Text style={styles.sectionTitle}>Popular Categories</Text>
         <View style={styles.popularCategories}>
-          {mockCategories.slice(1, 5).map((category) => (
+          {categories.slice(0, 4).map((category) => (
             <TouchableOpacity
               key={category.id}
               style={styles.popularCategory}
@@ -229,14 +247,8 @@ export default function SearchScreen() {
     <View style={styles.emptyContainer}>
       <Ionicons name="search-outline" size={64} color={colors.text.gray} />
       <Text style={styles.emptyTitle}>No results found</Text>
-      <Text style={styles.emptyText}>
-        Try adjusting your search or filters
-      </Text>
-      <Button
-        title="Clear filters"
-        onPress={handleClearFilters}
-        variant="outline"
-      />
+      <Text style={styles.emptyText}>Try adjusting your search or filters</Text>
+      <Button title="Clear filters" onPress={handleClearFilters} variant="outline" />
     </View>
   );
 
@@ -246,6 +258,10 @@ export default function SearchScreen() {
 
       {!hasSearched ? (
         renderRecentSearches()
+      ) : isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+        </View>
       ) : (
         <FlatList
           data={searchResults}
@@ -276,32 +292,24 @@ export default function SearchScreen() {
           <View style={styles.filtersContent}>
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Sort By</Text>
-              {(['newest', 'price-low', 'price-high', 'rating'] as SortOption[]).map(
-                (option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={styles.filterOption}
-                    onPress={() => setSortBy(option)}
-                  >
-                    <Text style={styles.filterOptionText}>
-                      {option === 'newest'
-                        ? 'Newest First'
-                        : option === 'price-low'
-                        ? 'Price: Low to High'
-                        : option === 'price-high'
-                        ? 'Price: High to Low'
-                        : 'Top Rated'}
-                    </Text>
-                    {sortBy === option && (
-                      <Ionicons
-                        name="checkmark"
-                        size={20}
-                        color={colors.primary.DEFAULT}
-                      />
-                    )}
-                  </TouchableOpacity>
-                )
-              )}
+              {(['newest', 'price-low', 'price-high'] as SortOption[]).map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={styles.filterOption}
+                  onPress={() => setSortBy(option)}
+                >
+                  <Text style={styles.filterOptionText}>
+                    {option === 'newest'
+                      ? 'Newest First'
+                      : option === 'price-low'
+                      ? 'Price: Low to High'
+                      : 'Price: High to Low'}
+                  </Text>
+                  {sortBy === option && (
+                    <Ionicons name="checkmark" size={20} color={colors.primary.DEFAULT} />
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
 
             <View style={styles.filterSection}>
@@ -309,10 +317,10 @@ export default function SearchScreen() {
               <View style={styles.priceRangeOptions}>
                 {[
                   { label: 'Any', min: 0, max: Infinity },
-                  { label: 'Under $50', min: 0, max: 50 },
-                  { label: '$50 - $100', min: 50, max: 100 },
-                  { label: '$100 - $500', min: 100, max: 500 },
-                  { label: 'Over $500', min: 500, max: Infinity },
+                  { label: 'Under R500', min: 0, max: 500 },
+                  { label: 'R500 - R2000', min: 500, max: 2000 },
+                  { label: 'R2000 - R10000', min: 2000, max: 10000 },
+                  { label: 'Over R10000', min: 10000, max: Infinity },
                 ].map((range, index) => (
                   <TouchableOpacity
                     key={index}
@@ -347,16 +355,9 @@ export default function SearchScreen() {
           </View>
 
           <View style={styles.filtersFooter}>
-            <Button
-              title="Clear All"
-              onPress={handleClearFilters}
-              variant="outline"
-            />
+            <Button title="Clear All" onPress={handleClearFilters} variant="outline" />
             <View style={{ width: spacing.md }} />
-            <Button
-              title="Apply Filters"
-              onPress={() => setShowFilters(false)}
-            />
+            <Button title="Apply Filters" onPress={handleApplyFilters} />
           </View>
         </SafeAreaView>
       </Modal>
@@ -381,6 +382,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.DEFAULT,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchHeader: {
     flexDirection: 'row',

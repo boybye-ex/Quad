@@ -2,7 +2,11 @@ export interface Campus {
   id: string;
   name: string;
   shortName: string;
-  location: string;
+  city: string;
+  province: string;
+  kind: 'public_university' | 'private_college' | 'tvet';
+  allowedEmailDomains: string[];
+  createdAt: Date;
 }
 
 export interface User {
@@ -10,9 +14,11 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  role: 'Student' | 'TA' | 'Senior' | 'Sophomore' | 'Junior' | 'Freshman' | 'Graduate';
+  role: 'student' | 'ta' | 'admin';
   isVerified: boolean;
-  campus: Campus;
+  isSuspended: boolean;
+  campus: Campus | null;
+  campusId: string | null;
   createdAt: Date;
 }
 
@@ -25,6 +31,8 @@ export interface Category {
 }
 
 export type PriceType = 'fixed' | 'hourly' | 'monthly' | 'free';
+
+export type ListingStatus = 'active' | 'hidden' | 'deleted';
 
 export interface Listing {
   id: string;
@@ -41,6 +49,8 @@ export interface Listing {
   reviewCount?: number;
   tags?: string[];
   condition?: 'new' | 'like-new' | 'good' | 'fair';
+  status?: ListingStatus;
+  viewCount?: number;
   createdAt: Date;
   isFavorite?: boolean;
 }

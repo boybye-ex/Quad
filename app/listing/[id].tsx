@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Share,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -15,19 +17,76 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
-import { PriceBadge, RatingBadge, Badge } from '@/components/ui/Badge';
-import { getListingById, formatTimeAgo } from '@/services/mockData';
+import { RatingBadge, Badge } from '@/components/ui/Badge';
+import { ReportSheet } from '@/components/ReportSheet';
+import { useAuthStore } from '@/store/authStore';
+import { fetchListingById, toggleFavourite } from '@/lib/listings';
+import { getOrCreateConversation } from '@/lib/chat';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
+import { Listing } from '@/types';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
 
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuthStore();
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isContactingLoading, setIsContactingLoading] = useState(false);
+  const [showReportSheet, setShowReportSheet] = useState(false);
 
-  const listing = getListingById(id);
+  useEffect(() => {
+    if (id) {
+      loadListing();
+    }
+  }, [id]);
+
+  const loadListing = async () => {
+    setIsLoading(true);
+    const data = await fetchListingById(id, user?.id);
+    setListing(data);
+    setIsFavorite(data?.isFavorite || false);
+    setIsLoading(false);
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
+
+    const result = await toggleFavourite(id, user.id);
+    if (!result.error) {
+      setIsFavorite(result.isFavourite);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!listing) {
     return (
@@ -52,15 +111,38 @@ export default function ListingDetailScreen() {
     }
   };
 
-  const handleContactSeller = () => {
-    router.push('/(tabs)/messages');
+  const handleContactSeller = async () => {
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
+
+    if (!listing) return;
+
+    if (listing.seller.id === user.id) {
+      Alert.alert('Your Listing', "You can't message yourself!");
+      return;
+    }
+
+    setIsContactingLoading(true);
+    const result = await getOrCreateConversation(user.id, listing.seller.id, listing.id);
+    setIsContactingLoading(false);
+
+    if (result.error) {
+      Alert.alert('Error', 'Could not start conversation. Please try again.');
+      return;
+    }
+
+    if (result.conversationId) {
+      router.push(`/(tabs)/messages?conversationId=${result.conversationId}`);
+    }
   };
 
   const formatPrice = () => {
     if (listing.priceType === 'free') return 'Free';
-    const suffix = listing.priceType === 'hourly' ? '/hour' : 
-                   listing.priceType === 'monthly' ? '/month' : '';
-    return `$${listing.price}${suffix}`;
+    const suffix =
+      listing.priceType === 'hourly' ? '/hour' : listing.priceType === 'monthly' ? '/month' : '';
+    return `R${listing.price}${suffix}`;
   };
 
   return (
@@ -71,10 +153,7 @@ export default function ListingDetailScreen() {
           headerTitle: '',
           headerTransparent: true,
           headerLeft: () => (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color={colors.text.dark} />
             </TouchableOpacity>
           ),
@@ -83,16 +162,18 @@ export default function ListingDetailScreen() {
               <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
                 <Ionicons name="share-outline" size={22} color={colors.text.dark} />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={() => setIsFavorite(!isFavorite)}
-              >
+              <TouchableOpacity style={styles.headerButton} onPress={handleToggleFavorite}>
                 <Ionicons
                   name={isFavorite ? 'heart' : 'heart-outline'}
                   size={22}
                   color={isFavorite ? colors.accent.red : colors.text.dark}
                 />
               </TouchableOpacity>
+              {user && listing?.seller.id !== user.id && (
+                <TouchableOpacity style={styles.headerButton} onPress={() => setShowReportSheet(true)}>
+                  <Ionicons name="flag-outline" size={22} color={colors.text.dark} />
+                </TouchableOpacity>
+              )}
             </View>
           ),
         }}
@@ -111,25 +192,28 @@ export default function ListingDetailScreen() {
             }}
             scrollEventThrottle={16}
           >
-            {listing.images.map((uri, index) => (
-              <Image
-                key={index}
-                source={{ uri }}
-                style={styles.image}
-                contentFit="cover"
-                transition={200}
-              />
-            ))}
+            {listing.images.length > 0 ? (
+              listing.images.map((uri, index) => (
+                <Image
+                  key={index}
+                  source={{ uri }}
+                  style={styles.image}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ))
+            ) : (
+              <View style={[styles.image, styles.noImage]}>
+                <Ionicons name="image-outline" size={64} color={colors.text.gray} />
+              </View>
+            )}
           </ScrollView>
           {listing.images.length > 1 && (
             <View style={styles.imageDots}>
               {listing.images.map((_, index) => (
                 <View
                   key={index}
-                  style={[
-                    styles.imageDot,
-                    currentImageIndex === index && styles.imageDotActive,
-                  ]}
+                  style={[styles.imageDot, currentImageIndex === index && styles.imageDotActive]}
                 />
               ))}
             </View>
@@ -143,7 +227,7 @@ export default function ListingDetailScreen() {
             <View>
               <Text style={styles.price}>{formatPrice()}</Text>
               {listing.originalPrice && listing.originalPrice > listing.price && (
-                <Text style={styles.originalPrice}>${listing.originalPrice}</Text>
+                <Text style={styles.originalPrice}>R{listing.originalPrice}</Text>
               )}
             </View>
             <Badge label={listing.category.name} variant="outline" />
@@ -189,35 +273,25 @@ export default function ListingDetailScreen() {
           {/* Seller Info */}
           <View style={styles.sellerCard}>
             <View style={styles.sellerHeader}>
-              <Avatar
-                name={listing.seller.name}
-                uri={listing.seller.avatar}
-                size="lg"
-              />
+              <Avatar name={listing.seller.name} uri={listing.seller.avatar} size="lg" />
               <View style={styles.sellerInfo}>
                 <Text style={styles.sellerName}>{listing.seller.name}</Text>
                 <View style={styles.sellerMeta}>
                   <Text style={styles.sellerRole}>{listing.seller.role}</Text>
                   <Text style={styles.sellerDot}>•</Text>
                   <Text style={styles.sellerCampus}>
-                    {listing.seller.campus.shortName}
+                    {listing.campus?.shortName || 'Unknown'}
                   </Text>
                 </View>
                 {listing.seller.isVerified && (
                   <View style={styles.verifiedBadge}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={14}
-                      color={colors.secondary.DEFAULT}
-                    />
+                    <Ionicons name="checkmark-circle" size={14} color={colors.secondary.DEFAULT} />
                     <Text style={styles.verifiedText}>Verified student</Text>
                   </View>
                 )}
               </View>
             </View>
-            <Text style={styles.postedTime}>
-              Posted {formatTimeAgo(listing.createdAt)}
-            </Text>
+            <Text style={styles.postedTime}>Posted {formatTimeAgo(listing.createdAt)}</Text>
           </View>
 
           {/* Safety Tips */}
@@ -241,13 +315,31 @@ export default function ListingDetailScreen() {
             <Text style={styles.bottomPriceValue}>{formatPrice()}</Text>
           </View>
           <Button
-            title="Contact Seller"
+            title={isContactingLoading ? 'Opening...' : 'Contact Seller'}
             onPress={handleContactSeller}
-            icon={<Ionicons name="chatbubble-outline" size={18} color={colors.text.white} />}
+            icon={
+              isContactingLoading ? (
+                <ActivityIndicator size="small" color={colors.text.white} />
+              ) : (
+                <Ionicons name="chatbubble-outline" size={18} color={colors.text.white} />
+              )
+            }
             iconPosition="left"
+            disabled={isContactingLoading}
           />
         </View>
       </SafeAreaView>
+
+      {/* Report Sheet */}
+      {listing && (
+        <ReportSheet
+          visible={showReportSheet}
+          onClose={() => setShowReportSheet(false)}
+          targetType="listing"
+          targetId={listing.id}
+          targetName={listing.title}
+        />
+      )}
     </>
   );
 }
@@ -256,6 +348,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   notFound: {
     flex: 1,
@@ -287,6 +384,11 @@ const styles = StyleSheet.create({
   image: {
     width: screenWidth,
     height: 300,
+  },
+  noImage: {
+    backgroundColor: colors.background.DEFAULT,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   imageDots: {
     position: 'absolute',

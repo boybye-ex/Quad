@@ -1,5 +1,14 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,20 +16,43 @@ import { Picker } from '@react-native-picker/picker';
 
 import { Button, Input } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
-import { mockCampuses } from '@/services/mockData';
 import { colors, fontSize, fontWeight, spacing, borderRadius } from '@/constants/theme';
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { register, isLoading } = useAuthStore();
-  
+  const { register, isLoading, campuses, loadCampuses, validateEmailForCampus } = useAuthStore();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [campusId, setCampusId] = useState(mockCampuses[0].id);
+  const [campusId, setCampusId] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+
+  useEffect(() => {
+    if (campuses.length === 0) {
+      loadCampuses();
+    }
+  }, [campuses.length, loadCampuses]);
+
+  useEffect(() => {
+    if (campuses.length > 0 && !campusId) {
+      setCampusId(campuses[0].id);
+    }
+  }, [campuses, campusId]);
+
+  useEffect(() => {
+    if (email && campusId) {
+      const validationError = validateEmailForCampus(email, campusId);
+      setEmailError(validationError || '');
+    } else {
+      setEmailError('');
+    }
+  }, [email, campusId, validateEmailForCampus]);
+
+  const selectedCampus = campuses.find((c) => c.id === campusId);
 
   const handleSignUp = async () => {
     if (!name || !email || !password || !confirmPassword) {
@@ -28,8 +60,13 @@ export default function SignUpScreen() {
       return;
     }
 
-    if (!email.includes('.edu')) {
-      setError('Please use your .edu email address');
+    if (!campusId) {
+      setError('Please select your campus');
+      return;
+    }
+
+    if (emailError) {
+      setError(emailError);
       return;
     }
 
@@ -44,13 +81,34 @@ export default function SignUpScreen() {
     }
 
     setError('');
-    const success = await register(email, password, name, campusId);
-    
-    if (success) {
-      router.replace('/(tabs)');
+    const result = await register(email, password, name, campusId);
+
+    if (result.success) {
+      if (result.requiresEmailConfirmation) {
+        Alert.alert(
+          'Check your email',
+          `We've sent a confirmation link to ${email}. Please click the link to verify your account before signing in.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(auth)/sign-in'),
+            },
+          ]
+        );
+      } else {
+        router.replace('/(tabs)');
+      }
     } else {
-      setError('Registration failed. Please try again.');
+      setError(result.error || 'Registration failed. Please try again.');
     }
+  };
+
+  const getEmailHint = () => {
+    if (selectedCampus && selectedCampus.allowedEmailDomains.length > 0) {
+      const exampleDomain = selectedCampus.allowedEmailDomains[0];
+      return `Use your ${selectedCampus.shortName} email, e.g. 1234567@${exampleDomain}`;
+    }
+    return 'Select a campus first';
   };
 
   return (
@@ -59,14 +117,8 @@ export default function SignUpScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={colors.text.dark} />
           </TouchableOpacity>
 
@@ -87,19 +139,6 @@ export default function SignUpScreen() {
 
             <View style={styles.inputSpacer} />
 
-            <Input
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="your.name@university.edu"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              hint="Use your .edu email to verify you're a student"
-            />
-
-            <View style={styles.inputSpacer} />
-
             <Text style={styles.label}>Campus</Text>
             <View style={styles.pickerContainer}>
               <Picker
@@ -107,15 +146,38 @@ export default function SignUpScreen() {
                 onValueChange={(value) => setCampusId(value)}
                 style={styles.picker}
               >
-                {mockCampuses.map((campus) => (
+                {campuses.map((campus) => (
                   <Picker.Item
                     key={campus.id}
-                    label={campus.name}
+                    label={`${campus.name} (${campus.shortName})`}
                     value={campus.id}
                   />
                 ))}
               </Picker>
             </View>
+            {selectedCampus && (
+              <Text style={styles.campusInfo}>
+                {selectedCampus.city}, {selectedCampus.province}
+              </Text>
+            )}
+
+            <View style={styles.inputSpacer} />
+
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder={
+                selectedCampus
+                  ? `name@${selectedCampus.allowedEmailDomains[0] || 'university.ac.za'}`
+                  : 'your.email@university.ac.za'
+              }
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              hint={getEmailHint()}
+              error={emailError || undefined}
+            />
 
             <View style={styles.inputSpacer} />
 
@@ -129,11 +191,7 @@ export default function SignUpScreen() {
               hint="At least 8 characters"
               rightIcon={
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color={colors.text.gray}
-                  />
+                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={colors.text.gray} />
                 </TouchableOpacity>
               }
             />
@@ -153,12 +211,7 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Button
-              title="Create Account"
-              onPress={handleSignUp}
-              loading={isLoading}
-              fullWidth
-            />
+            <Button title="Create Account" onPress={handleSignUp} loading={isLoading} fullWidth />
 
             <View style={styles.signInContainer}>
               <Text style={styles.signInText}>Already have an account? </Text>
@@ -228,6 +281,12 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 48,
+  },
+  campusInfo: {
+    fontSize: fontSize.xs,
+    color: colors.text.gray,
+    marginTop: spacing.xs,
+    marginLeft: spacing.sm,
   },
   errorText: {
     fontSize: fontSize.sm,
