@@ -88,3 +88,34 @@ export interface SearchFilters {
   campus?: string;
   sortBy: 'newest' | 'price-low' | 'price-high' | 'rating';
 }
+
+export type PaymentStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
+
+export type PaymentProvider = 'paystack' | 'yoco' | 'stripe';
+
+export interface Payment {
+  id: string;
+  listingId: string;
+  payerId: string;
+  payeeId: string;
+  amountCents: number;
+  currency: string;
+  provider: PaymentProvider;
+  providerRef: string | null;
+  status: PaymentStatus;
+  metadata: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PaymentWithDetails extends Payment {
+  listingTitle: string;
+  payerName: string;
+  payeeName: string;
+}
