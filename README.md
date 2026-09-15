@@ -13,7 +13,7 @@ A React Native mobile application for campus marketplace - buy, sell, and share 
 - **Admin Panel** - Full moderation tools for admins (users, listings, reports)
 - **User Profiles** - Manage your listings, favorites, and settings
 - **Campus Communities** - Connect with verified students at your campus
-- **SA University Support** - All 26 public universities and 9 major private colleges
+- **SA Institution Support** - All 26 public universities, 9 private colleges, and 50 TVET colleges
 
 ## Tech Stack
 
@@ -134,7 +134,7 @@ npm run web
 
 ### Seeded Campuses
 
-The database includes all 26 South African public universities and 9 major private colleges:
+The database includes all 26 South African public universities, 9 major private colleges, and 50 public TVET colleges (85 total):
 
 **Public Universities (26):**
 - Western Cape: UCT, Stellenbosch, UWC, CPUT
@@ -149,6 +149,19 @@ The database includes all 26 South African public universities and 9 major priva
 
 **Private Colleges (9):**
 IIE MSA, Varsity College, Rosebank College, Vega, Eduvos, AFDA, STADIO, MANCOSA, Boston
+
+**Public TVET Colleges (50):**
+- Gauteng (8): CJC, EEC, EWC, Sedibeng, SWGC, TNC, TSC, Westcol
+- Western Cape (6): Boland, CCT, False Bay, Northlink, South Cape, West Coast
+- KwaZulu-Natal (9): Coastal, Elangeni, Esayidi, Majuba, Mnambithi, Mthashana, Thekwini, Umfolozi, Umgungundlovu
+- Eastern Cape (8): Buffalo City, Eastcape Midlands, Ikhala, Ingwe, King Hintsa, KSD, Lovedale, PE TVET
+- Limpopo (7): Capricorn, Lephalale, Letaba, Mopani SE, Sekhukhune, Vhembe, Waterberg
+- Free State (4): Flavius Mareka, Goldfields, Maluti, Motheo
+- Mpumalanga (3): Ehlanzeni, Gert Sibande, Nkangala
+- North West (3): Orbit, Taletso, Vuselela
+- Northern Cape (2): NC Rural, NC Urban
+
+*Note: TVET email domains are less standardized than universities. Domains are based on official college websites and DHET registers.*
 
 ### Email Domain Verification
 
@@ -296,7 +309,6 @@ This creates:
 - Push notifications for new messages
 - Student number verification APIs
 - Campus SSO integration
-- TVET colleges (50+, pending email domain standardization)
 
 ## Project Structure
 
