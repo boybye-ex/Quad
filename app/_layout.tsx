@@ -6,12 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PaystackProvider } from 'react-native-paystack-webview';
 import 'react-native-reanimated';
 import '../global.css';
 
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { getPaymentConfig } from '@/lib/payments';
 import {
   addNotificationReceivedListener,
   addNotificationResponseListener,
@@ -92,11 +94,13 @@ export default function RootLayout() {
     };
   }, []);
 
+  const paymentConfig = getPaymentConfig();
+
   if (!loaded) {
     return null;
   }
 
-  return (
+  const appContent = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
@@ -132,10 +136,30 @@ export default function RootLayout() {
                 headerTintColor: colors.primary.DEFAULT,
               }}
             />
+            <Stack.Screen
+              name="checkout"
+              options={{
+                headerShown: true,
+                headerTitle: 'Checkout',
+                headerBackTitle: 'Back',
+                headerTintColor: colors.primary.DEFAULT,
+              }}
+            />
           </Stack>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+
+  // Wrap with PaystackProvider only if payments are enabled and public key is set
+  if (paymentConfig.isEnabled && paymentConfig.publicKey) {
+    return (
+      <PaystackProvider publicKey={paymentConfig.publicKey} currency="ZAR">
+        {appContent}
+      </PaystackProvider>
+    );
+  }
+
+  return appContent;
 }
