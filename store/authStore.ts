@@ -7,9 +7,11 @@ import {
   fetchProfile,
   validateEmailDomain,
   getEmailDomainError,
+  updateExpoPushToken,
   Campus as SupabaseCampus,
   Profile as SupabaseProfile,
 } from '@/lib/supabase';
+import { registerForPushNotifications } from '@/lib/notifications';
 
 interface AuthStore extends AuthState {
   campuses: Campus[];
@@ -25,6 +27,7 @@ interface AuthStore extends AuthState {
   initialize: () => Promise<void>;
   loadCampuses: () => Promise<void>;
   validateEmailForCampus: (email: string, campusId: string) => string | null;
+  registerPushToken: () => Promise<void>;
 }
 
 const CAMPUS_KEY = 'selected_campus';
@@ -129,6 +132,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             isLoading: false,
             selectedCampus: userCampus || selectedCampus,
           });
+
+          // Re-register push token on app launch to ensure it's up to date
+          // This handles cases where the token may have changed
+          get().registerPushToken();
+
           return;
         }
       }
@@ -213,6 +221,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             selectedCampus: userCampus || get().selectedCampus,
           });
 
+          // Register for push notifications after successful login
+          // This runs async and doesn't block the login completion
+          get().registerPushToken();
+
           return { success: true };
         }
       }
@@ -296,6 +308,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             isAuthenticated: true,
             selectedCampus: userCampus,
           });
+
+          // Register for push notifications after successful registration
+          // This runs async and doesn't block the registration completion
+          get().registerPushToken();
         }
         return { success: true };
       }
@@ -314,6 +330,42 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ selectedCampus: campus });
     } catch (error) {
       console.error('Error saving campus:', error);
+    }
+  },
+
+  /**
+   * Registers for push notifications and saves the token to the user's profile.
+   * This should be called after a successful login or signup.
+   * Gracefully handles cases where push notifications are unavailable
+   * (e.g., Expo Go on Android) - it simply won't save a token.
+   */
+  registerPushToken: async () => {
+    const user = get().user;
+    if (!user) {
+      console.log('[AuthStore] Cannot register push token: no user logged in');
+      return;
+    }
+
+    try {
+      const result = await registerForPushNotifications();
+
+      if (result.success && result.token) {
+        // Save the token to the user's profile in Supabase
+        const saved = await updateExpoPushToken(user.id, result.token);
+        if (saved) {
+          console.log('[AuthStore] Push token saved to profile');
+        } else {
+          console.warn('[AuthStore] Failed to save push token to profile');
+        }
+      } else if (result.error) {
+        // This is not necessarily a failure - could be Expo Go on Android
+        // or EAS not configured. We log it but don't treat it as an error.
+        console.log('[AuthStore] Push registration note:', result.error);
+      }
+    } catch (error) {
+      // Push notification registration failed, but we don't want to
+      // block the user experience. Just log and continue.
+      console.error('[AuthStore] Error registering push token:', error);
     }
   },
 }));

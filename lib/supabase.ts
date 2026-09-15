@@ -68,6 +68,7 @@ export interface Profile {
   is_verified: boolean;
   is_suspended: boolean;
   avatar_url: string | null;
+  expo_push_token: string | null;
   created_at: string;
 }
 
@@ -117,6 +118,53 @@ export async function updateProfile(
   }
 
   return data;
+}
+
+/**
+ * Updates the user's Expo push token in their profile.
+ * Called after the user grants notification permissions and we obtain a token.
+ * 
+ * @param userId - The user's ID (from auth)
+ * @param token - The Expo push token, or null to clear the token
+ * @returns true if the update succeeded, false otherwise
+ */
+export async function updateExpoPushToken(
+  userId: string,
+  token: string | null
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ expo_push_token: token })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error updating Expo push token:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Retrieves the Expo push token for a specific user.
+ * Used when we need to send a push notification to a user.
+ * 
+ * @param userId - The user's ID
+ * @returns The push token if available, null otherwise
+ */
+export async function getExpoPushToken(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('expo_push_token')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching Expo push token:', error);
+    return null;
+  }
+
+  return data?.expo_push_token || null;
 }
 
 export function validateEmailDomain(email: string, allowedDomains: string[]): boolean {

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { sendNewMessageNotificationForConversation } from './pushService';
 
 export interface Participant {
   id: string;
@@ -172,7 +173,8 @@ export async function fetchMessages(
 export async function sendMessage(
   conversationId: string,
   senderId: string,
-  content: string
+  content: string,
+  senderName?: string
 ): Promise<{ message: ChatMessage | null; error?: string }> {
   const { data, error } = await supabase
     .from('messages')
@@ -187,6 +189,20 @@ export async function sendMessage(
   if (error) {
     console.error('Error sending message:', error);
     return { message: null, error: error.message };
+  }
+
+  // Send push notification to the recipient (async, non-blocking)
+  // We don't await this to avoid slowing down the message send flow
+  if (senderName) {
+    sendNewMessageNotificationForConversation(
+      conversationId,
+      senderId,
+      senderName,
+      content
+    ).catch((err) => {
+      // Log but don't fail the message send if push notification fails
+      console.warn('[Chat] Push notification failed:', err);
+    });
   }
 
   return {

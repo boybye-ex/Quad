@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -12,6 +12,11 @@ import '../global.css';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import {
+  addNotificationReceivedListener,
+  addNotificationResponseListener,
+} from '@/lib/notifications';
+import type { EventSubscription } from 'expo-notifications';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -51,6 +56,41 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded, initializeAuth, initializeTheme]);
+
+  // Set up notification listeners once on mount.
+  // These handle incoming notifications and user interactions with notifications.
+  const notificationListenerRef = useRef<EventSubscription | null>(null);
+  const responseListenerRef = useRef<EventSubscription | null>(null);
+
+  useEffect(() => {
+    // Listen for notifications received while the app is in the foreground
+    notificationListenerRef.current = addNotificationReceivedListener((notification) => {
+      // Log incoming notifications - you can add custom handling here
+      console.log('[RootLayout] Notification received:', notification.request.content.title);
+    });
+
+    // Listen for user interactions with notifications (taps)
+    responseListenerRef.current = addNotificationResponseListener((response) => {
+      // Handle notification taps - navigate based on the notification data
+      const data = response.notification.request.content.data;
+      console.log('[RootLayout] Notification tapped:', data);
+
+      // Example: Navigate to a conversation if the notification has a conversationId
+      if (data?.conversationId && typeof data.conversationId === 'string') {
+        router.push(`/(tabs)/messages`);
+      }
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      if (notificationListenerRef.current) {
+        notificationListenerRef.current.remove();
+      }
+      if (responseListenerRef.current) {
+        responseListenerRef.current.remove();
+      }
+    };
+  }, []);
 
   if (!loaded) {
     return null;
