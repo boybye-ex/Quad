@@ -204,12 +204,20 @@ export default function CategoryScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="search-outline" size={64} color={colors.text.gray} />
-      <Text style={styles.emptyTitle}>No listings found</Text>
+      <View style={styles.emptyIconCircle}>
+        <Ionicons 
+          name={searchQuery ? "search-outline" : "storefront-outline"} 
+          size={32} 
+          color={colors.primary.DEFAULT} 
+        />
+      </View>
+      <Text style={styles.emptyTitle}>
+        {searchQuery ? 'No matches' : 'Nothing here yet'}
+      </Text>
       <Text style={styles.emptyText}>
         {searchQuery
-          ? `No results for "${searchQuery}"`
-          : `No listings in ${category?.name || 'this category'} yet`}
+          ? `No results for "${searchQuery}" in ${category?.name || 'this category'}`
+          : `Be the first to post in ${category?.name || 'this category'} on your campus!`}
       </Text>
     </View>
   );
@@ -359,16 +367,25 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     paddingVertical: spacing['4xl'],
     paddingHorizontal: spacing.xl,
   },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.secondary.light + '30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
   emptyTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
     color: colors.text.dark,
-    marginTop: spacing.lg,
   },
   emptyText: {
     fontSize: fontSize.base,
     color: colors.text.gray,
     textAlign: 'center',
     marginTop: spacing.sm,
+    lineHeight: 22,
   },
 });

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { PriceBadge, RatingBadge } from '@/components/ui/Badge';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { getFirstImageUri, hasImages } from '@/lib/images';
 import { Listing } from '@/types';
 import { formatTimeAgo } from '@/services/mockData';
 import { borderRadius, fontSize, fontWeight, spacing, shadows } from '@/constants/theme';
@@ -33,6 +34,9 @@ export function ListingCard({ listing, variant = 'default', onFavorite }: Listin
     onFavorite?.(listing.id);
   };
 
+  const imageUri = getFirstImageUri(listing.images);
+  const showPlaceholder = !hasImages(listing.images);
+
   if (variant === 'horizontal') {
     return (
       <TouchableOpacity
@@ -40,12 +44,20 @@ export function ListingCard({ listing, variant = 'default', onFavorite }: Listin
         onPress={handlePress}
         activeOpacity={0.8}
       >
-        <Image
-          source={{ uri: listing.images[0] }}
-          style={styles.horizontalImage}
-          contentFit="cover"
-          transition={200}
-        />
+        {showPlaceholder ? (
+          <View style={[styles.horizontalImage, styles.placeholderContainer]}>
+            <View style={styles.placeholderIconCircle}>
+              <Ionicons name="cube-outline" size={24} color={colors.primary.DEFAULT} />
+            </View>
+          </View>
+        ) : (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.horizontalImage}
+            contentFit="cover"
+            transition={200}
+          />
+        )}
         <View style={styles.horizontalContent}>
           <Text style={styles.horizontalTitle} numberOfLines={1}>
             {listing.title}
@@ -72,12 +84,21 @@ export function ListingCard({ listing, variant = 'default', onFavorite }: Listin
       activeOpacity={0.8}
     >
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: listing.images[0] }}
-          style={styles.image}
-          contentFit="cover"
-          transition={200}
-        />
+        {showPlaceholder ? (
+          <View style={[styles.image, styles.placeholderContainer]}>
+            <View style={styles.placeholderIconCircle}>
+              <Ionicons name="cube-outline" size={32} color={colors.primary.DEFAULT} />
+            </View>
+            <Text style={styles.placeholderText}>No photo</Text>
+          </View>
+        ) : (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.image}
+            contentFit="cover"
+            transition={200}
+          />
+        )}
         <TouchableOpacity
           style={styles.favoriteButton}
           onPress={handleFavorite}
@@ -157,6 +178,25 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
   image: {
     width: '100%',
     height: '100%',
+  },
+  placeholderContainer: {
+    backgroundColor: colors.secondary.light + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.secondary.light + '40',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  placeholderText: {
+    fontSize: fontSize.xs,
+    color: colors.text.gray,
+    fontWeight: fontWeight.medium,
   },
   favoriteButton: {
     position: 'absolute',

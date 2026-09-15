@@ -220,9 +220,14 @@ export default function HomeScreen() {
           />
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="cube-outline" size={48} color={colors.text.gray} />
-            <Text style={styles.emptyText}>No listings yet</Text>
-            <Text style={styles.emptySubtext}>Be the first to post!</Text>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="storefront-outline" size={32} color={colors.primary.DEFAULT} />
+            </View>
+            <Text style={styles.emptyText}>Campus board is quiet</Text>
+            <Text style={styles.emptySubtext}>
+              No listings on {selectedCampus?.shortName || 'your campus'} yet.{'\n'}
+              Be the first to share something!
+            </Text>
           </View>
         )}
 
@@ -483,16 +488,26 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       paddingVertical: spacing['3xl'],
       paddingHorizontal: spacing.lg,
     },
+    emptyIconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.secondary.light + '30',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+    },
     emptyText: {
       fontSize: fontSize.lg,
       fontWeight: fontWeight.semibold,
       color: colors.text.dark,
-      marginTop: spacing.md,
     },
     emptySubtext: {
       fontSize: fontSize.base,
       color: colors.text.gray,
       marginTop: spacing.xs,
+      textAlign: 'center',
+      lineHeight: 22,
     },
     builtBySection: {
       backgroundColor: colors.background.cream,
