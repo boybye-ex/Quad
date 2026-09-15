@@ -303,7 +303,54 @@ This creates:
 -- This creates sample reports for testing the admin queue
 ```
 
-### Future Enhancements (Not in Step 4)
+### Payments Foundation (Step 5)
+
+The app includes a payments foundation for secure peer-to-peer transactions using Paystack (ZAR).
+
+**Provider Choice: Paystack**
+
+We chose [Paystack](https://paystack.com/) for South African payments because:
+- Native ZAR support (no currency conversion fees)
+- Popular among SA students and fintechs
+- Multiple payment methods: Card, Instant EFT (Ozow), Mobile Money
+- Lower fees for local transactions (2.9% + R2.00)
+- Official React Native SDK available
+
+See [docs/payments.md](./docs/payments.md) for the full design document.
+
+**Current Features (Foundation):**
+- `payments` database table with full schema
+- "Buy Now" button on listings (when payments enabled)
+- Checkout placeholder screen
+- Environment-gated (no charges without valid keys)
+
+**Migration (Step 5):**
+
+```sql
+-- Run in Supabase SQL Editor (after Steps 1-4):
+-- supabase/migrations/00005_payments.sql
+```
+
+**Environment Setup:**
+
+```bash
+# In .env (use test keys for development):
+EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_test_your-key-here
+EXPO_PUBLIC_PAYMENTS_ENABLED=true
+```
+
+Get test keys from [Paystack Dashboard > Settings > API Keys](https://dashboard.paystack.com/#/settings/developers).
+
+**Testing:**
+
+With `EXPO_PUBLIC_PAYMENTS_ENABLED=false` (default), the "Buy Now" button is hidden and users see "Contact Seller" only. When enabled with a valid Paystack test key, the button appears and leads to a checkout placeholder screen.
+
+**Future Phases:**
+- Phase 2: Actual Paystack SDK integration + webhooks
+- Phase 3: Platform fees, refunds
+- Phase 4: Escrow (requires legal review)
+
+### Future Enhancements (Not in Step 5)
 
 - Block user feature
 - Push notifications for new messages

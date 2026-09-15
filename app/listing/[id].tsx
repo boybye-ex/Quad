@@ -22,6 +22,7 @@ import { ReportSheet } from '@/components/ReportSheet';
 import { useAuthStore } from '@/store/authStore';
 import { fetchListingById, toggleFavourite } from '@/lib/listings';
 import { getOrCreateConversation } from '@/lib/chat';
+import { isPaymentsEnabled } from '@/lib/payments';
 import { formatPrice, formatOriginalPrice } from '@/lib/format';
 import { colors, fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing } from '@/types';
@@ -52,6 +53,9 @@ export default function ListingDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isContactingLoading, setIsContactingLoading] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
+  
+  const paymentsEnabled = isPaymentsEnabled();
+  const canShowPayButton = paymentsEnabled && user && listing?.seller.id !== user.id && listing?.priceType !== 'free';
 
   useEffect(() => {
     if (id) {
@@ -137,6 +141,22 @@ export default function ListingDetailScreen() {
     if (result.conversationId) {
       router.push(`/(tabs)/messages?conversationId=${result.conversationId}`);
     }
+  };
+
+  const handleBuyNow = () => {
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
+
+    if (!listing) return;
+
+    if (listing.seller.id === user.id) {
+      Alert.alert('Your Listing', "You can't buy your own listing!");
+      return;
+    }
+
+    router.push(`/checkout?listingId=${listing.id}`);
   };
 
   const displayPrice = () => formatPrice(listing.price, listing.priceType);
@@ -310,19 +330,30 @@ export default function ListingDetailScreen() {
             <Text style={styles.bottomPriceLabel}>Price</Text>
             <Text style={styles.bottomPriceValue}>{displayPrice()}</Text>
           </View>
-          <Button
-            title={isContactingLoading ? 'Opening...' : 'Contact Seller'}
-            onPress={handleContactSeller}
-            icon={
-              isContactingLoading ? (
-                <ActivityIndicator size="small" color={colors.text.white} />
-              ) : (
-                <Ionicons name="chatbubble-outline" size={18} color={colors.text.white} />
-              )
-            }
-            iconPosition="left"
-            disabled={isContactingLoading}
-          />
+          <View style={styles.bottomButtons}>
+            {canShowPayButton && (
+              <Button
+                title="Buy Now"
+                onPress={handleBuyNow}
+                icon={<Ionicons name="card-outline" size={18} color={colors.text.white} />}
+                iconPosition="left"
+              />
+            )}
+            <Button
+              title={isContactingLoading ? 'Opening...' : 'Contact Seller'}
+              onPress={handleContactSeller}
+              variant={canShowPayButton ? 'outline' : 'primary'}
+              icon={
+                isContactingLoading ? (
+                  <ActivityIndicator size="small" color={canShowPayButton ? colors.primary.DEFAULT : colors.text.white} />
+                ) : (
+                  <Ionicons name="chatbubble-outline" size={18} color={canShowPayButton ? colors.primary.DEFAULT : colors.text.white} />
+                )
+              }
+              iconPosition="left"
+              disabled={isContactingLoading}
+            />
+          </View>
         </View>
       </SafeAreaView>
 
@@ -563,5 +594,9 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text.dark,
+  },
+  bottomButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
 });
