@@ -295,34 +295,67 @@ export default function PostScreen() {
 
         {/* Images */}
         <View style={styles.imagesSection}>
-          <Text style={styles.inputLabel}>Photos ({images.length}/5)</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.imagesRow}>
-              {images.map((uri, index) => (
-                <View key={index} style={styles.imageContainer}>
-                  <Image source={{ uri }} style={styles.imagePreview} contentFit="cover" />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => handleRemoveImage(index)}
-                  >
-                    <Ionicons name="close" size={16} color={colors.text.white} />
+          <View style={styles.imagesHeader}>
+            <Text style={styles.inputLabel}>Photos</Text>
+            <Text style={styles.imagesCount}>{images.length}/5</Text>
+          </View>
+          
+          {images.length === 0 ? (
+            <View style={styles.emptyImagesContainer}>
+              <View style={styles.emptyImagesContent}>
+                <View style={styles.emptyImagesIconCircle}>
+                  <Ionicons name="camera" size={28} color={colors.primary.DEFAULT} />
+                </View>
+                <Text style={styles.emptyImagesTitle}>Add photos to your listing</Text>
+                <Text style={styles.emptyImagesSubtitle}>
+                  Listings with photos get more views. Add up to 5 photos.
+                </Text>
+                <View style={styles.emptyImagesButtons}>
+                  <TouchableOpacity style={styles.emptyImageButton} onPress={handlePickImage}>
+                    <Ionicons name="images-outline" size={20} color={colors.primary.DEFAULT} />
+                    <Text style={styles.emptyImageButtonText}>Choose from Gallery</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.emptyImageButton} onPress={handleTakePhoto}>
+                    <Ionicons name="camera-outline" size={20} color={colors.primary.DEFAULT} />
+                    <Text style={styles.emptyImageButtonText}>Take a Photo</Text>
                   </TouchableOpacity>
                 </View>
-              ))}
-              {images.length < 5 && (
-                <View style={styles.addImageButtons}>
-                  <TouchableOpacity style={styles.addImageButton} onPress={handlePickImage}>
-                    <Ionicons name="images-outline" size={24} color={colors.text.gray} />
-                    <Text style={styles.addImageText}>Gallery</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.addImageButton} onPress={handleTakePhoto}>
-                    <Ionicons name="camera-outline" size={24} color={colors.text.gray} />
-                    <Text style={styles.addImageText}>Camera</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              </View>
             </View>
-          </ScrollView>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.imagesRow}>
+                {images.map((uri, index) => (
+                  <View key={index} style={styles.imageContainer}>
+                    <Image source={{ uri }} style={styles.imagePreview} contentFit="cover" />
+                    <TouchableOpacity
+                      style={styles.removeImageButton}
+                      onPress={() => handleRemoveImage(index)}
+                    >
+                      <Ionicons name="close" size={16} color={colors.text.white} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {images.length < 5 && (
+                  <View style={styles.addImageButtons}>
+                    <TouchableOpacity style={styles.addImageButton} onPress={handlePickImage}>
+                      <Ionicons name="images-outline" size={24} color={colors.text.gray} />
+                      <Text style={styles.addImageText}>Gallery</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.addImageButton} onPress={handleTakePhoto}>
+                      <Ionicons name="camera-outline" size={24} color={colors.text.gray} />
+                      <Text style={styles.addImageText}>Camera</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          )}
+          <Text style={styles.imagesHint}>
+            {images.length === 0 
+              ? 'Photos are optional but highly recommended'
+              : 'Tap + to add more photos'}
+          </Text>
         </View>
 
         {/* Title */}
@@ -699,11 +732,78 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
   imagesSection: {
     marginBottom: spacing.lg,
   },
+  imagesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   inputLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.text.dark,
-    marginBottom: spacing.sm,
+  },
+  imagesCount: {
+    fontSize: fontSize.sm,
+    color: colors.text.gray,
+  },
+  emptyImagesContainer: {
+    backgroundColor: colors.background.white,
+    borderRadius: borderRadius.xl,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.border.DEFAULT,
+    overflow: 'hidden',
+  },
+  emptyImagesContent: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  emptyImagesIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.secondary.light + '30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  emptyImagesTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.dark,
+    marginBottom: spacing.xs,
+  },
+  emptyImagesSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.text.gray,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+  },
+  emptyImagesButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  emptyImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.secondary.light + '25',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    gap: spacing.xs,
+  },
+  emptyImageButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.primary.DEFAULT,
+  },
+  imagesHint: {
+    fontSize: fontSize.xs,
+    color: colors.text.light,
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   imagesRow: {
     flexDirection: 'row',

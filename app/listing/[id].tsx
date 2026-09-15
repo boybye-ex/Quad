@@ -25,6 +25,7 @@ import { fetchListingById, toggleFavourite } from '@/lib/listings';
 import { getOrCreateConversation } from '@/lib/chat';
 import { isPaymentsEnabled } from '@/lib/payments';
 import { formatPrice, formatOriginalPrice } from '@/lib/format';
+import { resolveImageUris, hasImages } from '@/lib/images';
 import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing } from '@/types';
 
@@ -42,6 +43,36 @@ function formatTimeAgo(date: Date): string {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString();
+}
+
+function formatCondition(condition: string): string {
+  const labels: Record<string, string> = {
+    'new': 'Brand New',
+    'like-new': 'Like New',
+    'good': 'Good Condition',
+    'fair': 'Fair Condition',
+  };
+  return labels[condition] || condition;
+}
+
+function getConditionIcon(condition: string): keyof typeof Ionicons.glyphMap {
+  const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+    'new': 'sparkles',
+    'like-new': 'star',
+    'good': 'checkmark-circle',
+    'fair': 'information-circle',
+  };
+  return icons[condition] || 'help-circle';
+}
+
+function getConditionColor(condition: string, colors: ReturnType<typeof useThemeColors>): string {
+  const colorMap: Record<string, string> = {
+    'new': colors.secondary.DEFAULT,
+    'like-new': colors.primary.DEFAULT,
+    'good': colors.text.gray,
+    'fair': colors.accent.orange,
+  };
+  return colorMap[condition] || colors.text.gray;
 }
 
 export default function ListingDetailScreen() {
@@ -201,42 +232,57 @@ export default function ListingDetailScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Image Gallery */}
         <View style={styles.imageContainer}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
-              setCurrentImageIndex(index);
-            }}
-            scrollEventThrottle={16}
-          >
-            {listing.images.length > 0 ? (
-              listing.images.map((uri, index) => (
-                <Image
-                  key={index}
-                  source={{ uri }}
-                  style={styles.image}
-                  contentFit="cover"
-                  transition={200}
-                />
-              ))
-            ) : (
-              <View style={[styles.image, styles.noImage]}>
-                <Ionicons name="image-outline" size={64} color={colors.text.gray} />
-              </View>
-            )}
-          </ScrollView>
-          {listing.images.length > 1 && (
-            <View style={styles.imageDots}>
-              {listing.images.map((_, index) => (
-                <View
-                  key={index}
-                  style={[styles.imageDot, currentImageIndex === index && styles.imageDotActive]}
-                />
-              ))}
-            </View>
-          )}
+          {(() => {
+            const resolvedImages = resolveImageUris(listing.images);
+            const showPlaceholder = resolvedImages.length === 0;
+            
+            return (
+              <>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(e) => {
+                    const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+                    setCurrentImageIndex(index);
+                  }}
+                  scrollEventThrottle={16}
+                >
+                  {showPlaceholder ? (
+                    <View style={[styles.image, styles.noImage]}>
+                      <View style={styles.placeholderIconCircle}>
+                        <Ionicons name="cube-outline" size={40} color={colors.primary.DEFAULT} />
+                      </View>
+                      <Text style={styles.placeholderTitle}>No photos yet</Text>
+                      <Text style={styles.placeholderSubtitle}>
+                        This listing doesn't have any images
+                      </Text>
+                    </View>
+                  ) : (
+                    resolvedImages.map((uri, index) => (
+                      <Image
+                        key={index}
+                        source={{ uri }}
+                        style={styles.image}
+                        contentFit="cover"
+                        transition={200}
+                      />
+                    ))
+                  )}
+                </ScrollView>
+                {resolvedImages.length > 1 && (
+                  <View style={styles.imageDots}>
+                    {resolvedImages.map((_, index) => (
+                      <View
+                        key={index}
+                        style={[styles.imageDot, currentImageIndex === index && styles.imageDotActive]}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
+            );
+          })()}
         </View>
 
         {/* Content */}
@@ -281,11 +327,17 @@ export default function ListingDetailScreen() {
 
           {/* Condition */}
           {listing.condition && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Condition</Text>
-              <Text style={styles.conditionText}>
-                {listing.condition.charAt(0).toUpperCase() + listing.condition.slice(1)}
-              </Text>
+            <View style={styles.conditionSection}>
+              <View style={styles.conditionBadge}>
+                <Ionicons 
+                  name={getConditionIcon(listing.condition)} 
+                  size={16} 
+                  color={getConditionColor(listing.condition, colors)} 
+                />
+                <Text style={[styles.conditionBadgeText, { color: getConditionColor(listing.condition, colors) }]}>
+                  {formatCondition(listing.condition)}
+                </Text>
+              </View>
             </View>
           )}
 
@@ -329,9 +381,12 @@ export default function ListingDetailScreen() {
       {/* Bottom CTA */}
       <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
         <View style={styles.bottomContent}>
-          <View style={styles.bottomPrice}>
+          <View style={styles.bottomPriceSection}>
             <Text style={styles.bottomPriceLabel}>Price</Text>
             <Text style={styles.bottomPriceValue}>{displayPrice()}</Text>
+            {listing.originalPrice && listing.originalPrice > listing.price && (
+              <Text style={styles.bottomOriginalPrice}>{formatOriginalPrice(listing.originalPrice)}</Text>
+            )}
           </View>
           <View style={styles.bottomButtons}>
             {canShowPayButton && (
@@ -343,7 +398,7 @@ export default function ListingDetailScreen() {
               />
             )}
             <Button
-              title={isContactingLoading ? 'Opening...' : 'Contact Seller'}
+              title={isContactingLoading ? 'Opening...' : 'Message'}
               onPress={handleContactSeller}
               variant={canShowPayButton ? 'outline' : 'primary'}
               icon={
@@ -417,9 +472,30 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     height: 300,
   },
   noImage: {
-    backgroundColor: colors.background.DEFAULT,
+    backgroundColor: colors.secondary.light + '20',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  placeholderIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.secondary.light + '40',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  placeholderTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.dark,
+    marginBottom: spacing.xs,
+  },
+  placeholderSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.text.gray,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
   },
   imageDots: {
     position: 'absolute',
@@ -498,9 +574,22 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     color: colors.text.gray,
     lineHeight: 24,
   },
-  conditionText: {
-    fontSize: fontSize.base,
-    color: colors.text.dark,
+  conditionSection: {
+    marginBottom: spacing.lg,
+  },
+  conditionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.background.DEFAULT,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
+  },
+  conditionBadgeText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
   sellerCard: {
     backgroundColor: colors.background.DEFAULT,
@@ -585,22 +674,32 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
-  bottomPrice: {
-    flex: 1,
+  bottomPriceSection: {
+    flexShrink: 1,
+    minWidth: 80,
   },
   bottomPriceLabel: {
     fontSize: fontSize.xs,
     color: colors.text.gray,
+    marginBottom: 2,
   },
   bottomPriceValue: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text.dark,
   },
+  bottomOriginalPrice: {
+    fontSize: fontSize.sm,
+    color: colors.text.gray,
+    textDecorationLine: 'line-through',
+  },
   bottomButtons: {
     flexDirection: 'row',
     gap: spacing.sm,
+    flexShrink: 0,
   },
 });
