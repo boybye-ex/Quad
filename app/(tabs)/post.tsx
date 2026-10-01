@@ -11,6 +11,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -93,6 +95,11 @@ export default function PostScreen() {
   };
 
   const handleTakePhoto = async () => {
+    if (isWeb) {
+      Alert.alert('Camera Unavailable', 'Camera is not available on web. Please use the gallery to select images.');
+      return;
+    }
+    
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permissionResult.granted) {
@@ -304,7 +311,7 @@ export default function PostScreen() {
             <View style={styles.emptyImagesContainer}>
               <View style={styles.emptyImagesContent}>
                 <View style={styles.emptyImagesIconCircle}>
-                  <Ionicons name="camera" size={28} color={colors.primary.DEFAULT} />
+                  <Ionicons name={isWeb ? "images" : "camera"} size={28} color={colors.primary.DEFAULT} />
                 </View>
                 <Text style={styles.emptyImagesTitle}>Add photos to your listing</Text>
                 <Text style={styles.emptyImagesSubtitle}>
@@ -313,12 +320,14 @@ export default function PostScreen() {
                 <View style={styles.emptyImagesButtons}>
                   <TouchableOpacity style={styles.emptyImageButton} onPress={handlePickImage}>
                     <Ionicons name="images-outline" size={20} color={colors.primary.DEFAULT} />
-                    <Text style={styles.emptyImageButtonText}>Choose from Gallery</Text>
+                    <Text style={styles.emptyImageButtonText}>{isWeb ? 'Choose Files' : 'Choose from Gallery'}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.emptyImageButton} onPress={handleTakePhoto}>
-                    <Ionicons name="camera-outline" size={20} color={colors.primary.DEFAULT} />
-                    <Text style={styles.emptyImageButtonText}>Take a Photo</Text>
-                  </TouchableOpacity>
+                  {!isWeb && (
+                    <TouchableOpacity style={styles.emptyImageButton} onPress={handleTakePhoto}>
+                      <Ionicons name="camera-outline" size={20} color={colors.primary.DEFAULT} />
+                      <Text style={styles.emptyImageButtonText}>Take a Photo</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -340,12 +349,14 @@ export default function PostScreen() {
                   <View style={styles.addImageButtons}>
                     <TouchableOpacity style={styles.addImageButton} onPress={handlePickImage}>
                       <Ionicons name="images-outline" size={24} color={colors.text.gray} />
-                      <Text style={styles.addImageText}>Gallery</Text>
+                      <Text style={styles.addImageText}>{isWeb ? 'Add' : 'Gallery'}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.addImageButton} onPress={handleTakePhoto}>
-                      <Ionicons name="camera-outline" size={24} color={colors.text.gray} />
-                      <Text style={styles.addImageText}>Camera</Text>
-                    </TouchableOpacity>
+                    {!isWeb && (
+                      <TouchableOpacity style={styles.addImageButton} onPress={handleTakePhoto}>
+                        <Ionicons name="camera-outline" size={24} color={colors.text.gray} />
+                        <Text style={styles.addImageText}>Camera</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>

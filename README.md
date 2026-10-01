@@ -357,6 +357,93 @@ With `EXPO_PUBLIC_PAYMENTS_ENABLED=false` (default), the "Buy Now" button is hid
 - Student number verification APIs
 - Campus SSO integration
 
+## Private Web App (PWA on Vercel)
+
+Quad can be deployed as a private, invite-only web app (Progressive Web App) on Vercel. Users can install it to their Home Screen like a native app.
+
+### Deploying to Vercel
+
+1. **Push to GitHub** and connect the repository to Vercel
+
+2. **Set Environment Variables** in Vercel Dashboard > Settings > Environment Variables:
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=https://tawjmefiddlpvualfunc.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+   EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_test_your-key-here
+   EXPO_PUBLIC_PAYMENTS_ENABLED=true
+   ```
+
+3. **Configure Supabase Auth Redirect**:
+   - Go to [Supabase Dashboard > Authentication > URL Configuration](https://supabase.com/dashboard/project/tawjmefiddlpvualfunc/auth/url-configuration)
+   - Add your Vercel domain to "Redirect URLs": `https://your-app.vercel.app/**`
+   - Add to "Site URL" if this is the primary deployment
+
+4. **Apply the Email Allowlist Migration**:
+   ```sql
+   -- Run supabase/migrations/00008_email_allowlist.sql in Supabase SQL Editor
+   -- This creates the invite-only gate
+   ```
+
+5. **Deploy**: Vercel will automatically build and deploy on push
+
+### Adding to Home Screen
+
+**iPhone/iPad:**
+1. Open the Vercel URL in Safari
+2. Tap the Share button (square with arrow)
+3. Scroll down and tap "Add to Home Screen"
+4. Tap "Add" - Quad appears as a full-screen app
+
+**Android:**
+1. Open the Vercel URL in Chrome
+2. Tap the three-dot menu
+3. Tap "Add to Home screen" or "Install app"
+4. Tap "Add" - Quad appears with a proper icon
+
+### Managing the Email Allowlist
+
+Only emails in the allowlist can sign up or sign in. Existing users at migration time are automatically added.
+
+**Add an email (SQL):**
+```sql
+INSERT INTO allowed_emails (email, note) 
+VALUES ('newuser@example.com', 'Added by admin');
+```
+
+**Or use the admin function:**
+```sql
+SELECT admin_add_allowed_email('newuser@example.com', 'Optional note');
+```
+
+**Remove an email:**
+```sql
+SELECT admin_remove_allowed_email('user@example.com');
+```
+
+**List all allowed emails (admin only):**
+```sql
+SELECT * FROM admin_list_allowed_emails();
+```
+
+**Disable invite-only mode (allow anyone):**
+```sql
+SELECT admin_set_invite_only(false);
+-- Or directly:
+UPDATE app_settings SET value = 'false' WHERE key = 'invite_only_enabled';
+```
+
+**Re-enable invite-only mode:**
+```sql
+SELECT admin_set_invite_only(true);
+```
+
+### Web-Specific Notes
+
+- **Push notifications** are not available on web; users see a graceful message
+- **Camera** is not available on web; users can still upload photos from their device
+- **Paystack payments** work via redirect to Paystack's hosted checkout page
+- The app works offline for cached content (basic PWA caching)
+
 ## Project Structure
 
 ```

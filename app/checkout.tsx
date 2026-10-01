@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { usePaystack } from 'react-native-paystack-webview';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -25,11 +26,25 @@ import {
   priceToAmountCents,
   getPaymentConfig,
   createPayment,
+  initializePaystackPayment,
   verifyPaystackPayment,
   updatePaymentFailed,
 } from '@/lib/payments';
 import { fontSize, fontWeight, spacing, borderRadius, shadows } from '@/constants/theme';
 import { Listing } from '@/types';
+
+function usePaystackPopup() {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+  try {
+    const { usePaystack } = require('react-native-paystack-webview');
+    const paystack = usePaystack();
+    return paystack?.popup || null;
+  } catch {
+    return null;
+  }
+}
 
 type CheckoutState = 'loading' | 'ready' | 'processing' | 'success' | 'failed' | 'cancelled';
 
@@ -56,15 +71,10 @@ export default function CheckoutScreen() {
 
   const paymentConfig = getPaymentConfig();
   const paymentsEnabled = isPaymentsEnabled();
+  const isWeb = Platform.OS === 'web';
   
-  // Get Paystack popup - will be undefined if provider not wrapped
-  let paystackPopup: ReturnType<typeof usePaystack>['popup'] | null = null;
-  try {
-    const paystack = usePaystack();
-    paystackPopup = paystack?.popup || null;
-  } catch {
-    // PaystackProvider not available
-  }
+  // Get Paystack popup - only available on native platforms
+  const paystackPopup = usePaystackPopup();
 
   useEffect(() => {
     if (listingId) {
@@ -106,7 +116,10 @@ export default function CheckoutScreen() {
   }, [paymentId]);
 
   const handlePayment = async () => {
-    if (!listing || !user || !paystackPopup) return;
+    if (!listing || !user) return;
+    
+    // On native, we need the Paystack popup
+    if (!isWeb && !paystackPopup) return;
 
     setCheckoutState('processing');
     setErrorMessage(null);
@@ -129,38 +142,87 @@ export default function CheckoutScreen() {
 
       setPaymentId(newPaymentId);
 
-      // Generate reference
-      const reference = `QUAD_${newPaymentId.replace(/-/g, '').substring(0, 12)}_${Date.now()}`;
-      setPaymentReference(reference);
+      if (isWeb) {
+        // Web: Use Paystack's hosted checkout via authorization URL
+        const initResult = await initializePaystackPayment({
+          paymentId: newPaymentId,
+          email: user.email,
+          amountCents,
+        });
 
-      // Open Paystack checkout popup (currency is set at provider level)
-      paystackPopup.checkout({
-        email: user.email,
-        amount: amountCents,
-        reference,
-        metadata: {
-          custom_fields: [
-            {
-              display_name: 'Payment ID',
-              variable_name: 'payment_id',
-              value: newPaymentId,
-            },
-            {
-              display_name: 'Listing',
-              variable_name: 'listing_title',
-              value: listing.title,
-            },
-          ],
-        },
-        onSuccess: handlePaystackSuccess,
-        onCancel: handlePaystackCancel,
-      });
+        if (!initResult.success || !initResult.authorizationUrl) {
+          setErrorMessage(initResult.error || 'Failed to initialize payment');
+          setCheckoutState('failed');
+          return;
+        }
 
-      // Reset to ready after popup opens (popup handles the rest)
-      setCheckoutState('ready');
+        setPaymentReference(initResult.reference || null);
+        
+        // Open Paystack checkout in a new tab/window
+        // Note: User will be redirected back to the app after payment
+        // For now, we show a message since we can't easily detect when they return
+        window.open(initResult.authorizationUrl, '_blank');
+        
+        // Show a modal asking user to verify after completing payment
+        setCheckoutState('ready');
+        Alert.alert(
+          'Payment Window Opened',
+          'Complete your payment in the new window. After payment, tap "Verify Payment" to confirm.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Native: Use the Paystack webview popup
+        const reference = `QUAD_${newPaymentId.replace(/-/g, '').substring(0, 12)}_${Date.now()}`;
+        setPaymentReference(reference);
+
+        paystackPopup!.checkout({
+          email: user.email,
+          amount: amountCents,
+          reference,
+          metadata: {
+            custom_fields: [
+              {
+                display_name: 'Payment ID',
+                variable_name: 'payment_id',
+                value: newPaymentId,
+              },
+              {
+                display_name: 'Listing',
+                variable_name: 'listing_title',
+                value: listing.title,
+              },
+            ],
+          },
+          onSuccess: handlePaystackSuccess,
+          onCancel: handlePaystackCancel,
+        });
+
+        // Reset to ready after popup opens (popup handles the rest)
+        setCheckoutState('ready');
+      }
     } catch (err) {
       console.error('[Checkout] Payment error:', err);
       setErrorMessage('An error occurred while processing payment');
+      setCheckoutState('failed');
+    }
+  };
+  
+  const handleVerifyWebPayment = async () => {
+    if (!paymentReference) {
+      setErrorMessage('No payment reference found');
+      return;
+    }
+    
+    setCheckoutState('processing');
+    const verifyResult = await verifyPaystackPayment(paymentReference);
+    
+    if (verifyResult.success && verifyResult.status === 'completed') {
+      setCheckoutState('success');
+    } else if (verifyResult.status === 'processing' || verifyResult.status === 'pending') {
+      setErrorMessage('Payment is still processing. Please wait and try again.');
+      setCheckoutState('ready');
+    } else {
+      setErrorMessage(verifyResult.error || 'Payment verification failed');
       setCheckoutState('failed');
     }
   };
@@ -498,25 +560,49 @@ export default function CheckoutScreen() {
               <Text style={styles.bottomPriceLabel}>Total</Text>
               <Text style={styles.bottomPriceValue}>{formattedAmount}</Text>
             </View>
-            <Button
-              title={
-                checkoutState === 'processing'
-                  ? 'Processing...'
-                  : paymentsEnabled
-                  ? `Pay ${formattedAmount}`
-                  : 'Coming Soon'
-              }
-              onPress={paymentsEnabled ? handlePayment : () => {}}
-              disabled={!paymentsEnabled || checkoutState === 'processing'}
-              icon={
-                checkoutState === 'processing' ? (
-                  <ActivityIndicator size="small" color={colors.text.white} />
-                ) : (
-                  <Ionicons name="lock-closed" size={18} color={colors.text.white} />
-                )
-              }
-              iconPosition="left"
-            />
+            {isWeb && paymentReference ? (
+              <View style={styles.webPaymentButtons}>
+                <Button
+                  title={checkoutState === 'processing' ? 'Verifying...' : 'Verify Payment'}
+                  onPress={handleVerifyWebPayment}
+                  disabled={checkoutState === 'processing'}
+                  icon={
+                    checkoutState === 'processing' ? (
+                      <ActivityIndicator size="small" color={colors.text.white} />
+                    ) : (
+                      <Ionicons name="checkmark-circle" size={18} color={colors.text.white} />
+                    )
+                  }
+                  iconPosition="left"
+                />
+                <Button
+                  title="Pay Again"
+                  onPress={handlePayment}
+                  variant="outline"
+                  disabled={checkoutState === 'processing'}
+                />
+              </View>
+            ) : (
+              <Button
+                title={
+                  checkoutState === 'processing'
+                    ? 'Processing...'
+                    : paymentsEnabled
+                    ? `Pay ${formattedAmount}`
+                    : 'Coming Soon'
+                }
+                onPress={paymentsEnabled ? handlePayment : () => {}}
+                disabled={!paymentsEnabled || checkoutState === 'processing'}
+                icon={
+                  checkoutState === 'processing' ? (
+                    <ActivityIndicator size="small" color={colors.text.white} />
+                  ) : (
+                    <Ionicons name="lock-closed" size={18} color={colors.text.white} />
+                  )
+                }
+                iconPosition="left"
+              />
+            )}
           </View>
         </View>
       </SafeAreaView>
@@ -751,6 +837,12 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       fontSize: fontSize.xl,
       fontWeight: fontWeight.bold,
       color: colors.text.dark,
+    },
+    webPaymentButtons: {
+      flexDirection: 'column',
+      gap: spacing.sm,
+      flex: 1,
+      marginLeft: spacing.lg,
     },
     // Success state styles
     successIconContainer: {

@@ -46,10 +46,17 @@ export interface NotificationPermissionStatus {
 
 /**
  * Checks whether push notifications are available in the current environment.
- * Push notifications are NOT available in Expo Go on Android (SDK 53+).
+ * Push notifications are NOT available:
+ * - On web (browsers don't support Expo push tokens)
+ * - In Expo Go on Android (SDK 53+)
  * They work in Expo Go on iOS and in development builds on both platforms.
  */
 export function isPushNotificationsAvailable(): boolean {
+  // Push notifications are not available on web
+  if (Platform.OS === 'web') {
+    return false;
+  }
+  
   // Check if we're running in Expo Go on Android
   // In Expo Go, Constants.executionEnvironment is 'storeClient'
   // In dev builds, it's 'standalone' or undefined

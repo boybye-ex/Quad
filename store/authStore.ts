@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { User, Campus, AuthState } from '@/types';
 import {
   supabase,
@@ -12,6 +12,32 @@ import {
   Profile as SupabaseProfile,
 } from '@/lib/supabase';
 import { registerForPushNotifications } from '@/lib/notifications';
+
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    const SecureStore = await import('expo-secure-store');
+    return SecureStore.getItemAsync(key);
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+      return;
+    }
+    const SecureStore = await import('expo-secure-store');
+    await SecureStore.setItemAsync(key, value);
+  },
+  async removeItem(key: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+      return;
+    }
+    const SecureStore = await import('expo-secure-store');
+    await SecureStore.deleteItemAsync(key);
+  },
+};
 
 interface AuthStore extends AuthState {
   campuses: Campus[];
@@ -105,7 +131,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       await get().loadCampuses();
 
-      const campusData = await SecureStore.getItemAsync(CAMPUS_KEY);
+      const campusData = await storage.getItem(CAMPUS_KEY);
       let selectedCampus: Campus | null = null;
       if (campusData) {
         try {
@@ -193,6 +219,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           return {
             success: false,
             error: 'Invalid email or password. Please try again.',
+          };
+        }
+        if (error.message.includes('invite-only')) {
+          return {
+            success: false,
+            error: 'Quad is invite-only right now. Contact the team to request access.',
           };
         }
         return { success: false, error: error.message };
@@ -284,6 +316,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             error: 'An account with this email already exists. Please sign in instead.',
           };
         }
+        if (error.message.includes('invite-only')) {
+          return {
+            success: false,
+            error: 'Quad is invite-only right now. Contact the team to request access.',
+          };
+        }
         return { success: false, error: error.message };
       }
 
@@ -326,7 +364,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   setSelectedCampus: async (campus: Campus) => {
     try {
-      await SecureStore.setItemAsync(CAMPUS_KEY, JSON.stringify(campus));
+      await storage.setItem(CAMPUS_KEY, JSON.stringify(campus));
       set({ selectedCampus: campus });
     } catch (error) {
       console.error('Error saving campus:', error);
