@@ -316,7 +316,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             error: 'An account with this email already exists. Please sign in instead.',
           };
         }
-        if (error.message.includes('invite-only')) {
+        if (
+          error.message.includes('invite-only') ||
+          error.message.includes('Database error saving new user') ||
+          error.message.includes('Database error creating user')
+        ) {
           return {
             success: false,
             error: 'Quad is invite-only right now. Contact the team to request access.',
