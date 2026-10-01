@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -6,7 +7,6 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { PaystackProvider } from 'react-native-paystack-webview';
 import 'react-native-reanimated';
 import '../global.css';
 
@@ -152,8 +152,10 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 
-  // Wrap with PaystackProvider only if payments are enabled and public key is set
-  if (paymentConfig.isEnabled && paymentConfig.publicKey) {
+  // Wrap with PaystackProvider only on native platforms (not web)
+  // and only if payments are enabled and public key is set
+  if (Platform.OS !== 'web' && paymentConfig.isEnabled && paymentConfig.publicKey) {
+    const { PaystackProvider } = require('react-native-paystack-webview');
     return (
       <PaystackProvider publicKey={paymentConfig.publicKey} currency="ZAR">
         {appContent}

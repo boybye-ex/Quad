@@ -32,7 +32,6 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
-import { createHmac } from 'https://deno.land/std@0.168.0/crypto/mod.ts';
 
 const PAYSTACK_API_URL = 'https://api.paystack.co';
 
@@ -82,15 +81,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info, x-paystack-signature',
 };
 
-function computeHmacSha512(data: string, secret: string): string {
+async function computeHmacSha512(data: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const messageData = encoder.encode(data);
   
-  const hmac = createHmac('sha512', keyData);
-  hmac.update(messageData);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-512' },
+    false,
+    ['sign']
+  );
   
-  const hashArray = Array.from(new Uint8Array(hmac.digest()));
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  const hashArray = Array.from(new Uint8Array(signature));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -133,7 +138,7 @@ serve(async (req: Request) => {
 
     if (paystackSignature) {
       // Webhook request - verify signature
-      const expectedSignature = computeHmacSha512(bodyText, paystackSecretKey);
+      const expectedSignature = await computeHmacSha512(bodyText, paystackSecretKey);
       
       if (paystackSignature !== expectedSignature) {
         console.error('[paystack-verify] Invalid webhook signature');
